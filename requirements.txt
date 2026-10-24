@@ -1,0 +1,15 @@
+# Shared file (PLAN.md): append where possible, flag any pin in the PR.
+# Agent B — service, scoring, demo.
+fastapi
+uvicorn
+httpx
+streamlit
+
+# Hosted memory backends. Gated on the hour-0 spikes; lazy-imported by
+# src/registry.py so A's engine runs without them installed.
+# zep-cloud
+# letta-client        # requires Python 3.11+ — this machine is on 3.9.6
+
+# Offline judge metrics (axes 2 and 3). Not wired yet; see evaluator.score_offline.
+# deepeval
+# ragas
