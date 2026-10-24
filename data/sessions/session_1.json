@@ -40,7 +40,7 @@
     {
       "fact_id": "suitability_policy_v1",
       "text": "Regulatory update — suitability policy is now v1 (crypto allowed for professional clients up to 10% AUM).",
-      "tier": "baseline"
+      "tier": "direct"
     }
   ],
   "distractors": []
