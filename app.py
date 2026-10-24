@@ -9,6 +9,7 @@ not running.
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -51,17 +52,65 @@ CSS = """
 """
 
 
+def _available_logs():
+    """Every run log in results/, newest-looking first but with the default
+    log pinned to the top so the stage demo opens on it."""
+    logs = sorted(DEFAULT_LOG.parent.glob("run_log*.jsonl"))
+    logs.sort(key=lambda p: (p != DEFAULT_LOG, p.name))
+    return logs
+
+
+def _log_summary(path) -> str:
+    """Provenance from the first row — mode, model and which A/B arm.
+
+    Reads one line, not the whole file: the point is to make it impossible to
+    demo the wrong arm by accident.
+    """
+    try:
+        with path.open() as fh:
+            for line in fh:
+                if line.strip():
+                    row = json.loads(line)
+                    break
+            else:
+                return "empty"
+    except Exception:
+        return "unreadable"
+    mode = row.get("llm_mode") or "unknown"
+    model = (row.get("model") or "?").split("/")[-1]
+    if mode == "stub":
+        return "stub · no model"
+    hint = row.get("recency_hint")
+    arm = "" if hint is None else (" · hint ON" if hint else " · hint OFF")
+    return "{} · {}{}".format(mode, model, arm)
+
+
 def main() -> None:
     st.set_page_config(page_title="RegWatch AI", layout="wide")
     st.markdown(CSS, unsafe_allow_html=True)
 
-    records = load_log()
-    if not records:
+    logs = _available_logs()
+    if not logs:
         st.title("RegWatch AI")
         st.warning(
-            "No run log at `{}`. Generate a rehearsal log with "
-            "`python scripts/seed_demo_log.py`, or run the real sweep.".format(DEFAULT_LOG)
+            "No run log in `{}`. Generate a rehearsal log with "
+            "`python scripts/seed_demo_log.py`, or run "
+            "`python scripts/run_benchmark.py`.".format(DEFAULT_LOG.parent)
         )
+        return
+
+    with st.sidebar:
+        st.subheader("Run")
+        chosen = st.selectbox(
+            "Which run", logs, format_func=lambda p: p.stem.replace("run_log", "") or "current",
+            help="Each log is one benchmark run. The caption below names the "
+                 "mode, model and prompt arm it was produced with.")
+        st.caption(_log_summary(chosen))
+
+    records = load_log(chosen)
+    if not records:
+        st.title("RegWatch AI")
+        st.warning("`{}` is empty.".format(chosen))
         return
 
     st.title("RegWatch AI")
