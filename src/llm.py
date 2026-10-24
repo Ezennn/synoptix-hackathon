@@ -33,6 +33,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Load a local .env (if present) BEFORE reading any REGWATCH_*/provider vars, so
+# `REGWATCH_LLM_MODE=live` and API keys in .env take effect for every entry
+# point that imports the gateway. Real-environment values still win.
+try:
+    from src.config import ensure_loaded as _ensure_env
+except Exception:  # support running as a loose module without the package root
+    try:
+        from .config import ensure_loaded as _ensure_env  # type: ignore
+    except Exception:  # pragma: no cover
+        _ensure_env = lambda: None  # noqa: E731
+_ensure_env()
+
 # One cache dir for the whole project; override with REGWATCH_CACHE_DIR.
 _DEFAULT_CACHE_DIR = Path(
     os.environ.get("REGWATCH_CACHE_DIR", Path(__file__).resolve().parent.parent / "data" / "cache")
