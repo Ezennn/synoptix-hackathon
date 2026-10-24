@@ -4,8 +4,9 @@
 # ---- Agent A: engine (light; runs the whole engine offline in stub mode) ----
 PyYAML>=6.0            # read the temporal answer key (data/facts.yaml)
 
-# Optional for live mode (lazy-imported; engine runs without them in stub mode):
-# litellm>=1.40        # src/llm.py live gateway
+# Live mode. Lazy-imported, so the engine still runs offline without it, but the
+# README documents `--mode live` as a main path and that needs it installed.
+litellm>=1.40          # src/llm.py live gateway
 # langgraph>=0.2       # src/adapters/langgraph_state.py real StateGraph path
 
 # ---- Agent B: service + scoring + demo --------------------------------------
@@ -22,3 +23,6 @@ streamlit
 # Offline judge metrics (axes 2 and 3). Not wired yet; see evaluator.score_offline.
 # deepeval
 # ragas
+
+# ---- Tests -------------------------------------------------------------------
+pytest                 # tests/test_dag_consistency.py

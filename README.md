@@ -1,153 +1,156 @@
-# RegWatch AI — Memory-Tool Benchmark Harness
+# RegWatch
 
-**Which agent-memory framework actually keeps track of the truth when facts change over time — and which one quietly makes things up?**
+**An automated safety exam for AI memory — run before an assistant reaches real customers.**
 
-Built for the Synoptix hackathon. We benchmark five memory/context backends head-to-head on a stress test designed to break them, and score them with metrics that test **the memory layer itself**, not the LLM's reasoning.
+Built for the Synoptix ethical-AI hackathon. Primary track: **Governance & Compliance**,
+supported by **Explainability & Transparency**.
 
-> A standard RAG system retrieves the January fact *and* the March correction with equal confidence, then hallucinates conflicting advice. We measure which memory tools resolve that contradiction, which forget, and what it costs.
+---
 
-## The problem (plain English)
+## The problem
 
-An AI advising a client over months has to track facts that **change**. A client says in January "we have a high-risk appetite for crypto," then in March "we are now strictly conservative and have divested from crypto." Ask a naive system what the client's strategy is and it retrieves both statements with equal similarity — and gives contradictory advice.
+A client tells their adviser in January that they are crypto-heavy and aggressive. In
+March they divest and turn conservative. In April someone asks the assistant whether a
+high-risk crypto ETF is suitable.
 
-Good agent memory is supposed to fix this: invalidate the stale fact, keep the current one, and still remember the history. Different tools claim to do this very differently — temporal knowledge graphs, OS-style memory paging, hand-written state reducers, or just trimming old messages. **Nobody benchmarks them against each other on temporal correctness.** That's what this project does.
+Nobody typed anything wrong. The January note was true in January. But the memory layer
+in front of the model decides which of those facts reaches the prompt, and it can fail
+in two opposite directions:
 
-We drive the same multi-session scenario through five backends, ask the same probe questions, and score each on whether it keeps the current truth, resists clutter, and avoids hallucination — plus latency and cost.
+- **It keeps the dead** — the superseded fact is still in the context window.
+- **It loses the living** — trimming to save tokens drops the current fact entirely.
 
-## What makes this a real test (not an API-wrapper demo)
+From outside, both look the same: a fluent, confident assistant. Model evaluation does
+not catch either one, because it scores the *answer*, not the context the answer came
+from. That context layer is what RegWatch tests.
 
-The whole point is to test the **memory tool**, not the model behind it. So:
+This is not hypothetical. In *Moffatt v. Air Canada* (2024 BCCRT 149) the airline argued
+its chatbot was a "separate legal entity" responsible for its own answers. The tribunal
+disagreed and ordered the airline to pay. What your assistant says is what your company
+said.
 
-1. The LLM is held constant across all backends (same model, same prompt template, routed through one cached gateway).
-2. Every backend is wrapped by a **uniform adapter** returning the same shape: `(answer, retrieval_context, tokens, latency)`. The only thing that varies between runs is *which memory layer assembled the context*.
-3. Metrics score the **retrieved context** and the **answer against a temporal answer key**, so a right answer for the wrong reason (luck, recency bias) is caught.
+## What it does
 
-## The five backends under test
+1. **Replays a change.** A synthetic client and a MiFID-style suitability policy evolve
+   across four dated sessions. Facts carry validity intervals, so a question asked in
+   January is scored against January's truth, not the latest value.
+2. **Scores what the memory layer handed over.** Correctness is checked by code against a
+   temporal answer key — not one model grading another. An answer that declines to answer
+   is recorded as an abstention, not a wrong answer.
+3. **Says what to change**, with the token cost of the change.
 
-| Backend | Pattern | Hypothesis |
-|---|---|---|
-| **Sanity** (full history, no memory) | Everything in context, no management | Ceiling on accuracy, floor on cost — the control |
-| **LiteLLM trim** | Hard message truncation | Fast and cheap, catastrophic forgetting on multi-hop |
-| **LangGraph** | Checkpointer + custom state reducers | Full control, low cost, but you hand-write the pruning |
-| **Zep / Graphiti** | Temporal knowledge graph | Best contradiction resolution, higher write latency |
-| **Letta / MemGPT** | OS-style self-editing memory paging | Strong autonomy, risk of self-edit corruption |
+## What we measured
 
-All five run through the identical adapter interface so they're directly comparable.
+100 questions, 3 memory systems, 300 live answers. Same model (Claude Haiku), same system
+prompt for every backend — the only variable is the memory layer.
 
-## The stress test — 4 phases, graded difficulty
+| Memory configuration | Correct | Couldn't answer | Stale fact in context | Tokens/query |
+|---|---|---|---|---|
+| Keep everything | **92 / 100** | 2 | 71% | 1,086 |
+| Latest-per-key reducer | 75 / 100 | 13 | 54% | 480 |
+| Trim to token budget | **22 / 100** | **61** | 17% | 250 |
 
-A deterministic multi-session script. Each phase has escalating sub-tiers so results show a difficulty curve, not a single pass/fail.
+Two things to read here. The spread — 22% to 92% — comes from the memory layer alone.
+And trimming has the *least* stale context of the three while being by far the worst,
+because it holds almost nothing: it declined 61 times out of 100. A metric that flatters
+the emptiest system is why these are reported together.
 
-**Phase 1 — Baseline ingestion.** Feed complex corporate financial policies, historical client statements, and meeting notes across several simulated sessions.
+### The result we did not want
 
-**Phase 2 — Entity mutation & contradiction.**
-- *Direct overwrite* (easy): "risk appetite is now conservative" — tests recency.
-- *Scoped overwrite* (medium): "conservative for the pension sub-account, keep aggressive on the prop book" — does the tool scope the invalidation, or nuke the fact globally?
-- *Transitive invalidation* (hard): divest Subsidiary B, where an earlier fact said Subsidiary B holds the crypto position — the crypto exposure must be invalidated *by inference*.
-- *Reinstatement* (adversarial): A→B in session 2, then B→A in session 4 — does it track full history or just overwrite?
+Our hypothesis was that stale facts poison answers. We tested it: the system prompt
+contained one line, *"If facts conflict, prefer the most recent."* We removed it and
+re-ran all 300.
 
-**Phase 3 — Multi-hop reasoning.** A question needing synthesis across Session 1 (January), Session 2 (April), **and** a policy document that was itself superseded — forcing temporal validity over two independent timelines (client state + regulation version) at once.
+- Removing it costs **4–7 points** of accuracy across all three systems.
+- But of the **19** questions that broke, only **7** had a stale fact in context.
 
-**Phase 4 — Adversarial noise.** Flood active history with *plausible-but-stale* distractors (a long meeting note discussing the OLD risk tier), not random JSON — the hard case that actually stresses precision and faithfulness.
+If contamination were the mechanism, the damage would have concentrated there. It did
+not. On this model, what breaks the adviser is **forgetting**, not remembering too well.
+A benchmark that only confirms what you hoped is not measuring anything.
 
-**Context-length sweep:** rerun the probes at 5 / 20 / 50 / 100 turns to produce the "context rot" curve.
+`python scripts/analyse_ab.py` reproduces all of this from the committed logs.
 
-## Metrics — testing the memory, not the LLM
+## Running it
 
-| Axis | Method(s) | Why | Tooling |
-|---|---|---|---|
-| **1. State Consistency** (overwrites stale facts) | Custom **DAG metric** (primary) + G-Eval (backstop) | Not a standard metric: faithfulness can't tell "old true fact" from "current true fact" — both are grounded. Needs a deterministic yes/no against the answer key. | DeepEval `DAGMetric` |
-| **2. Context Precision** (low filler / noise resistance) | **Ragas `context_precision`** + DeepEval `ContextualPrecisionMetric` (ranking-aware) + `ContextualRelevancy` | Scores Phase 4: how much stale/irrelevant text the memory layer injected. | Ragas, DeepEval |
-| **3. Faithfulness / Grounding** (no hallucination) | DeepEval `FaithfulnessMetric` (atomic-claim) + **`ContextualRecall`** | Faithfulness catches invented claims; recall catches *silent forgetting* — a tool can be faithful but drop a fact it should have surfaced. | DeepEval |
-| **4. Retrieval Latency (ms)** | Wall-clock timing in the adapter | Direct measurement | Harness |
-| **5. Cost Efficiency ($/query)** | Token accounting at the gateway | Direct measurement | Harness |
-
-The headline per-backend result is a row on the scoreboard across all five axes; the headline *story* is the context-rot curve (axes 1–3 vs. session length).
-
-## Architecture — Option 2: one FastAPI service, hot-swappable backend plugins
-
-A single service orchestrates all five backends as plugins registered by name and called in parallel; a demo UI shows live side-by-side columns handling the same conflicting update.
-
-```
-        [Demo UI: five live columns]
-                   │
-                   ▼
-        ┌───────────────────────┐        ┌───────────────────────┐
-        │ FastAPI orchestrator  │◄──────►│ Fact extractor        │
-        │ /load /update /ask    │        │ proposes, user confirms│
-        │ /scores               │        └───────────────────────┘
-        └──────────┬────────────┘
-                   │  registered by name, called in parallel
-   ┌────────┬──────┴─────┬────────┬────────┐
-   ▼        ▼            ▼        ▼        ▼
- Sanity  LiteLLM-trim  LangGraph  Zep    Letta      (each optionally wrapped by Memory Guard)
-   │                                               │
-   ▼                                               ▼
-┌───────────────┐   ┌───────────────┐   ┌───────────────────────────┐
-│ LLM gateway   │   │ Evaluator     │   │ SQLite store              │
-│ LiteLLM,cached│   │ scores live   │   │ runs, scores, live facts  │
-└───────────────┘   └───────────────┘   └───────────────────────────┘
-```
-
-**Demo-safety variant:** the engine runs the full benchmark offline and writes results; the UI *replays* those results in live-looking columns, with an optional "re-run live" button. Keeps the wow factor without live-API flakiness on stage.
-
-## Repo layout (planned)
-
-```
-synoptix-hackathon/
-├── data/
-│   ├── templates/            # YAML scenario templates + seed
-│   ├── facts.yaml            # temporal answer key: valid_from / valid_until / superseded_by
-│   └── sessions/             # generated multi-session transcripts
-├── src/
-│   ├── generate.py           # builds facts, session phrasing, probe checks from templates
-│   ├── adapters/             # ONE interface, five implementations
-│   │   ├── base.py           # MemoryBackend protocol: load/update/ask -> (answer, context, tokens, latency)
-│   │   ├── sanity.py
-│   │   ├── litellm_trim.py
-│   │   ├── langgraph_state.py
-│   │   ├── zep_graph.py
-│   │   └── letta_paging.py
-│   ├── llm.py                # cached LLM gateway: retries, cost accounting
-│   ├── orchestrator.py       # FastAPI app: /load /update /ask /scores
-│   ├── evaluator.py          # DeepEval + Ragas + custom DAG metric
-│   └── metrics/
-│       └── dag_consistency.py# custom temporal state-consistency DAG metric
-├── ui/                       # demo: five live columns
-├── results/                  # run_log.jsonl, scores, cached outputs
-├── figures/                  # scoreboard + context-rot charts
-├── app.py                    # launches orchestrator + UI
-└── README.md
-```
-
-## Getting started (planned)
+Python 3.9+.
 
 ```bash
-git clone https://github.com/Ezennn/synoptix-hackathon
-cd synoptix-hackathon
-pip install -r requirements.txt   # fastapi, deepeval, ragas, zep-python, letta, langgraph, litellm, ...
-
-python src/generate.py                      # build facts.yaml + sessions
-uvicorn src.orchestrator:app --reload       # start the service
-# POST /load (ingest Phase 1) -> /update (Phase 2 mutations) -> /ask (probes) -> /scores
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
-Seeds, model versions and prompts are recorded in `results/` so every chart regenerates with one command.
+**Generate the data and answer key** (deterministic):
 
-## The demo
+```bash
+.venv/bin/python src/generate.py        # -> data/sessions/*.json, data/probes.json
+```
 
-1. Load the January client profile into all five backends at once.
-2. Push the March contradiction ("divested from crypto, now conservative") through `/update`.
-3. Ask "what is the client's current crypto strategy?" — watch five columns answer side by side.
-4. Zep invalidates the old fact; LiteLLM-trim confidently gives the stale January answer.
-5. Flip to the scoreboard: it's not one example, it's the whole 100-question test set, with the context-rot curve.
+**Run the benchmark.** Stub mode is offline, free and needs no API key — it exercises the
+whole pipeline but the stub does not reason, so its accuracy means nothing:
 
-## Why this wins
+```bash
+.venv/bin/python scripts/run_benchmark.py --limit 2            # smoke test, offline
+```
 
-1. **Rigorous:** it benchmarks and scores trade-offs (accuracy vs latency vs cost), not just wraps an API.
-2. **High business impact:** temporal correctness is a real multi-billion-dollar compliance/advisory bottleneck.
-3. **Visually impressive:** live side-by-side columns show each framework handling the same contradiction differently.
+For real answers, put a key in `.env` (`ANTHROPIC_API_KEY=...`, gitignored) and:
 
-## Division of work
+```bash
+.venv/bin/python scripts/run_benchmark.py \
+    --mode live --model anthropic/claude-haiku-5-5 \
+    --cache-dir results/cache-live
+```
 
-Two agents, two machines, one repo. See [`PLAN.md`](PLAN.md) for the full split, the shared interface contract, and the branch workflow.
+300 calls, about three minutes, roughly $0.40. Responses are cached on disk, so a re-run
+is free. Use a fresh `--cache-dir` when you care about latency: a cached turn returns in
+~0 ms.
+
+Add `--no-recency-hint` for the B arm of the prompt experiment.
+
+**See the results:**
+
+```bash
+.venv/bin/streamlit run app.py          # dashboard, reads results/run_log*.jsonl
+.venv/bin/python scripts/analyse_ab.py  # the A/B comparison
+.venv/bin/python -m pytest tests/       # scorer regression tests
+```
+
+The dashboard opens on the committed run, so a fresh clone shows real results without
+running anything. The sidebar names the mode, model and prompt arm of whichever log you
+select — demoing the wrong one should take deliberate effort.
+
+**The service** (used by the live demo, not needed for the benchmark):
+
+```bash
+.venv/bin/uvicorn src.orchestrator:app --port 8077
+```
+
+## Layout
+
+| Path | What it is |
+|---|---|
+| `src/adapters/base.py` | The frozen contract every memory backend implements |
+| `src/adapters/` | sanity (full history), litellm_trim, langgraph_state, Zep/Letta scaffolds |
+| `src/generate.py`, `data/facts.yaml` | The temporal answer key and the data built from it |
+| `src/llm.py` | Cached gateway; tokens and latency measured here, never estimated |
+| `src/metrics/dag_consistency.py` | Deterministic state-consistency scoring |
+| `src/registry.py`, `src/orchestrator.py` | Backend plugins and the FastAPI service |
+| `src/evaluator.py` | Scoring, run-log provenance, the scoreboard store |
+| `scripts/run_benchmark.py` | The benchmark runner |
+| `app.py`, `ui/replay.py` | Dashboard and its aggregation |
+| `results/run_log.recency-*.jsonl` | The two committed A/B runs |
+
+Built by two agents against one frozen interface; see [PLAN.md](PLAN.md) and
+[AGENT_B_PLAN.md](AGENT_B_PLAN.md).
+
+## Limitations
+
+- **Synthetic data only.** One fictional client (Acme Capital Partners LLP) and an
+  invented versioned policy. No real client information. MiFID is real regulation; the
+  policy versions here are not.
+- **One model, one timeline.** Claude Haiku, four sessions, 100 questions. Per-bucket
+  samples run from 7 to 34. We are not claiming a general law.
+- **The transitive tier does not yet require inference** — session 3 states the derived
+  conclusion verbatim, so the model is handed the answer rather than deducing it.
+- **Abstention is scored as incorrect.** That is the right semantics for "did the memory
+  keep the fact", but a system that admits ignorance is safer in production than one that
+  states a stale value confidently, so the two are reported separately.
+- Zep and Letta adapters are scaffolds; their integration spikes were never run.
