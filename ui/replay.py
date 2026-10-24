@@ -51,10 +51,16 @@ def columns_for(records: List[Dict[str, Any]], probe_id: str) -> List[Dict[str, 
 
 
 def has_stale(record: Dict[str, Any]) -> Optional[bool]:
-    """True if the superseded phrase reached the model. None if unknowable."""
+    """True if the superseded phrase reached the model. None if unknowable.
+
+    An EMPTY retrieval_context is unknowable, not clean. The frozen contract
+    says a backend that cannot expose its injected text returns `[]`, so
+    treating that as "no stale fact found" would score the least transparent
+    backend as the cleanest one.
+    """
     stale = (record["probe"] or {}).get("superseded_answer")
     context = record.get("retrieval_context")
-    if not stale or context is None:
+    if not stale or not context:
         return None
     return any(stale.lower() in chunk.lower() for chunk in context)
 
