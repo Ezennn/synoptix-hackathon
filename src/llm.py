@@ -90,6 +90,8 @@ class LLMGateway:
         self.temperature = temperature
         self.max_retries = max_retries
         self.cache_dir = Path(cache_dir) if cache_dir else _DEFAULT_CACHE_DIR
+        # Cleared on the first provider refusal; see _live_complete.
+        self._send_temperature = True
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     # ---- cache ---------------------------------------------------------
@@ -205,12 +207,18 @@ class LLMGateway:
         last_exc = None
         for attempt in range(self.max_retries):
             try:
-                resp = litellm.completion(
-                    model=self.model,
-                    messages=messages,
-                    temperature=self.temperature,
-                    max_tokens=max_tokens,
-                )
+                kwargs = {
+                    "model": self.model,
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                }
+                # Newer models reject `temperature` outright ("`temperature` is
+                # deprecated for this model"). Send it only while the model
+                # accepts it; once refused, drop it for the rest of the run so
+                # every later call does not burn its retries on the same error.
+                if self._send_temperature:
+                    kwargs["temperature"] = self.temperature
+                resp = litellm.completion(**kwargs)
                 text = resp["choices"][0]["message"]["content"] or ""
                 usage = resp.get("usage") or {}
                 t_in = int(usage.get("prompt_tokens") or _approx_tokens(
@@ -220,6 +228,10 @@ class LLMGateway:
                 return text, t_in, t_out
             except Exception as exc:  # noqa: BLE001 — retry any provider error
                 last_exc = exc
+                if self._send_temperature and "temperature" in str(exc).lower():
+                    # Retry immediately without it rather than sleeping.
+                    self._send_temperature = False
+                    continue
                 time.sleep(min(2 ** attempt, 8))
         raise RuntimeError("LLM call failed after retries: %s" % last_exc)
 

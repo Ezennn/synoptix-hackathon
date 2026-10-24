@@ -94,3 +94,33 @@ def test_asserting_both_current_and_superseded_fails():
 def test_whole_word_matching_for_plain_values():
     """Substring matching would pass 'Luxembourgish' for 'Luxembourg'."""
     assert score_probe(probe("luxembourg"), "The domicile is Luxembourg.").score == 1.0
+
+
+# --- defect 4: an "I don't know" answer scored as correct ------------------
+
+def test_abstention_does_not_score_as_correct():
+    """Found in the first live smoke run. The question contains the expected
+    value, so a refusal that quotes the question used to score 1.0 — flattering
+    exactly the backends that had dropped the fact."""
+    answer = ("The provided facts don't include Acme Capital Partners LLP's "
+              "full legal name.")
+    result = score_probe(probe("Acme Capital Partners LLP"), answer)
+    assert result.score == 0.0
+    assert result.abstained is True
+
+
+def test_abstention_variants():
+    for answer in [
+        "I don't know the client's current risk appetite.",
+        "That information is not provided in the facts above.",
+        "There is no information about the tax domicile.",
+        "I cannot determine the current risk tier from these facts.",
+        "Unable to determine the base currency.",
+    ]:
+        assert score_probe(probe("conservative"), answer).score == 0.0, answer
+
+
+def test_a_real_answer_is_not_mistaken_for_abstention():
+    result = score_probe(probe("conservative"), "Conservative.")
+    assert result.score == 1.0
+    assert result.abstained is False

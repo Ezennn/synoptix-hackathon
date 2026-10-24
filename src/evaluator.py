@@ -96,7 +96,9 @@ def _consistency(turn: TurnResult, probe: Probe) -> Dict[str, Any]:
     try:
         # A's signature is score_probe(probe_dict, answer) -> DagScore.
         result = score_probe(asdict(probe), turn.answer)
-        return {"value": result.score, "passed": result.passed, "reason": result.reason}
+        return {"value": result.score, "passed": result.passed,
+                "abstained": getattr(result, "abstained", False),
+                "reason": result.reason}
     except Exception as exc:  # a scorer bug must not take down /ask
         return {"value": None, "reason": "scorer error: {}".format(exc)}
 

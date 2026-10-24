@@ -44,6 +44,31 @@ class DagScore:
     passed: bool
     reason: str
     probe_id: str = ""
+    abstained: bool = False   # the model said it could not answer
+
+
+# An answer that declines to answer is not an assertion of the current value —
+# even though it usually repeats the question, and the question contains the
+# expected value. Without this, "The provided facts don't include Acme Capital
+# Partners LLP's full legal name" scores 1.0, which flatters precisely the
+# backends that dropped the fact.
+#
+# Scoring an abstention 0.0 is the right semantics here: the question is whether
+# the memory layer still held the fact, and it did not. `abstained` is reported
+# separately so a backend that admits ignorance can be told apart from one that
+# confidently states a stale value — the first is safer in production.
+_ABSTENTION_PATTERNS = [
+    r"do(?:es)?\s*n[o']t\s+(?:include|contain|specify|mention|state|provide)",
+    r"not\s+(?:included|contained|specified|mentioned|stated|provided|available)",
+    r"(?:no|insufficient)\s+(?:information|facts|data|record)",
+    r"(?:can|could)\s*n[o']t\s+(?:determine|tell|say|answer)",
+    r"unable\s+to\s+(?:determine|tell|say|answer)",
+    r"i\s+do\s*n[o']t\s+(?:know|have)",
+]
+
+
+def _abstains(answer: str) -> bool:
+    return any(re.search(p, answer) for p in _ABSTENTION_PATTERNS)
 
 
 _VERSION_RE = re.compile(r"v\d+")
@@ -154,6 +179,15 @@ def score_probe(probe: Dict, answer: str) -> DagScore:
     pid = probe.get("probe_id", "")
     expected = probe.get("expected_answer", "")
     superseded = probe.get("superseded_values", []) or []
+
+    # node 0 — did the model decline to answer? Checked before anything else,
+    # because a refusal normally quotes the question, and the question contains
+    # the expected value.
+    if _abstains(_normalize(answer)):
+        return DagScore(
+            0.0, False, "abstains — the fact was not in the context", pid,
+            abstained=True,
+        )
 
     # node A — current value asserted?
     if not _asserts_value(answer, expected):
