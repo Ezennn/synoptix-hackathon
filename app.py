@@ -133,17 +133,26 @@ def _column(record, probe) -> None:
         unsafe_allow_html=True)
 
     stale = has_stale(record)
-    verdict = ("STALE FACT REACHED THE MODEL", "#e5484d") if stale else \
-              ("context current", "#30a46c") if stale is False else ("unknown", "#8b8d98")
     scores = record["scores"] or {}
-    consistency = (scores.get("consistency") or {}).get("value")
+    consistency_block = scores.get("consistency") or {}
+    consistency = consistency_block.get("value")
+    # An abstention is its own outcome: the fact was lost, not contradicted.
+    if consistency_block.get("abstained"):
+        verdict = ("COULD NOT ANSWER — fact missing", "#f5a524")
+    elif stale:
+        verdict = ("STALE FACT REACHED THE MODEL", "#e5484d")
+    elif stale is False:
+        verdict = ("context current", "#30a46c")
+    else:
+        verdict = ("unknown", "#8b8d98")
     st.markdown(
         '<div class="card"><h4>Answer</h4><div class="answer">{}</div>'
         '<div class="verdict" style="color:{}">{}</div>'
-        '<div class="meta">{} tok in · ${:.5f} · {:.0f} ms · consistency {}</div></div>'
+        '<div class="meta">{} tok in · {} · {} ms · consistency {}</div></div>'
         .format(record["answer"], verdict[1], verdict[0],
-                scores.get("tokens_in", 0), scores.get("cost_usd", 0.0),
-                scores.get("latency_ms", 0.0),
+                scores.get("tokens_in") or 0,
+                _usd(scores.get("cost_usd")),
+                _num(scores.get("latency_ms")),
                 "—" if consistency is None else consistency),
         unsafe_allow_html=True)
 
@@ -169,9 +178,11 @@ def _scoreboard(records) -> None:
     st.dataframe(rows, width="stretch", hide_index=True)
     st.caption(
         "Stale context is deterministic: did the superseded phrase appear in the "
-        "injected text. Consistency comes from Agent A's DAG metric and shows — "
-        "until that scorer is on this machine. Context precision, faithfulness and "
-        "recall are a separate offline pass (evaluator.score_offline)."
+        "injected text. Consistency is Agent A's DAG metric over the model's own "
+        "answer; an answer that declines to answer scores 0 and is counted as an "
+        "abstention, not a wrong answer. Cost shows — when the model's token rate "
+        "is not configured (REGWATCH_PRICE_IN_PER_M / _OUT_PER_M), rather than "
+        "reporting a figure we cannot stand behind."
     )
 
 
