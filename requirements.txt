@@ -1,16 +1,24 @@
-# RegWatch AI — dependencies (append-only; flag pins in the PR per PLAN.md)
+# RegWatch AI — dependencies
+# Shared file (PLAN.md): append-only where possible; flag any pin in the PR.
 
 # ---- Agent A: engine (light; runs the whole engine offline in stub mode) ----
 PyYAML>=6.0            # read the temporal answer key (data/facts.yaml)
 
-# Optional for live mode (lazy-imported; engine runs without it in stub mode):
+# Optional for live mode (lazy-imported; engine runs without them in stub mode):
 # litellm>=1.40        # src/llm.py live gateway
 # langgraph>=0.2       # src/adapters/langgraph_state.py real StateGraph path
 
-# ---- Agent B: service + external + scoring + UI (append below) --------------
-# zep-python>=2.0
-# letta>=0.5
-# fastapi>=0.110
-# uvicorn>=0.29
-# deepeval>=1.0
-# ragas>=0.1
+# ---- Agent B: service + scoring + demo --------------------------------------
+fastapi
+uvicorn
+httpx
+streamlit
+
+# Hosted memory backends. Gated on the hour-0 spikes; lazy-imported by
+# src/registry.py so A's engine runs without them installed.
+# zep-cloud
+# letta-client        # requires Python 3.11+ — Agent B's machine is on 3.9.6
+
+# Offline judge metrics (axes 2 and 3). Not wired yet; see evaluator.score_offline.
+# deepeval
+# ragas
