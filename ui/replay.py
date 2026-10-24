@@ -161,3 +161,121 @@ def stale_by_phase(records: List[Dict[str, Any]]) -> Dict[str, Dict[int, float]]
         buckets.setdefault(rec["backend"], {}).setdefault(phase, []).append(flag)
     return {backend: {phase: sum(v) / len(v) for phase, v in phases.items()}
             for backend, phases in buckets.items()}
+
+
+TIERS = ["baseline", "direct", "partial", "transitive", "reinstatement"]
+
+# What went wrong, and what an engineer should do about it. The cause is read
+# off the evidence — what the context actually held — never assumed. Claiming
+# "retrieval failed" when the fact was present would send someone to fix the
+# wrong layer.
+CAUSES = {
+    "fact_missing": (
+        "The current fact never reached the model.",
+        "Memory layer — the fact was dropped before the prompt was built. Raise "
+        "the token budget, or use a reducer that keeps the latest value per fact, "
+        "and retest this probe.",
+    ),
+    "only_stale": (
+        "Only the superseded value was in the context.",
+        "Memory layer — the update did not displace the old value. Check how this "
+        "backend handles a fact being overwritten, then retest.",
+    ),
+    "both_present": (
+        "Both the current and the superseded value were in the context; the model "
+        "chose the wrong one.",
+        "Prompt or reducer — the context was complete, so this is a resolution "
+        "failure. Keep the recency instruction in the system prompt, or drop "
+        "superseded values before the prompt is built.",
+    ),
+    "declined_despite_fact": (
+        "The current fact WAS in the context, but the model declined to answer.",
+        "Prompt — not a memory failure. The context was sufficient; the model was "
+        "too cautious to use it.",
+    ),
+    "fact_present_wrong_answer": (
+        "The current fact was in the context and the answer was still wrong.",
+        "Model or question — the memory layer did its job here. Check the probe "
+        "wording before blaming retrieval.",
+    ),
+}
+
+
+def _value_present(context: str, expected: str) -> bool:
+    """Did the expected value actually reach the model?
+
+    Delegates to the scorer so the dashboard and the metric agree on what
+    "present" means. A plain substring test fails on compound multi-hop values
+    like "yes (v2 (...))" and would blame retrieval for a failure it did not
+    cause.
+    """
+    if not context or not expected:
+        return False
+    try:
+        from src.metrics.dag_consistency import value_in_text
+    except Exception:
+        return expected.lower() in context.lower()
+    return value_in_text(context, expected)
+
+
+def diagnose(record: Dict[str, Any]) -> Optional[str]:
+    """Why this probe failed, judged only from the recorded evidence."""
+    scores = record.get("scores") or {}
+    consistency = scores.get("consistency") or {}
+    if consistency.get("value") != 0.0:
+        return None
+    probe = record.get("probe") or {}
+    context = " ".join(record.get("retrieval_context") or []).lower()
+    expected = probe.get("expected_answer") or ""
+    current_present = _value_present(context, expected)
+    stale = has_stale(record)
+
+    if consistency.get("abstained"):
+        return "declined_despite_fact" if current_present else "fact_missing"
+    if stale and not current_present:
+        return "only_stale"
+    if stale and current_present:
+        return "both_present"
+    if current_present:
+        return "fact_present_wrong_answer"
+    return "fact_missing"
+
+
+def failures(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Every failed probe, with its cause attached."""
+    out = []
+    for record in records:
+        cause = diagnose(record)
+        if cause:
+            out.append({"record": record, "cause": cause})
+    return out
+
+
+def by_tier(records: List[Dict[str, Any]]) -> Dict[str, Dict[str, Optional[float]]]:
+    """Consistency per backend per difficulty tier — where each method breaks."""
+    buckets: Dict[str, Dict[str, List[float]]] = {}
+    for record in records:
+        if record["status"] != "ok":
+            continue
+        value = ((record.get("scores") or {}).get("consistency") or {}).get("value")
+        if value is None:
+            continue
+        tier = (record.get("probe") or {}).get("tier") or "unknown"
+        buckets.setdefault(record["backend"], {}).setdefault(tier, []).append(value)
+    return {backend: {tier: sum(v) / len(v) for tier, v in tiers.items()}
+            for backend, tiers in buckets.items()}
+
+
+def run_meta(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Provenance of the run, for the header."""
+    if not records:
+        return {}
+    first = records[0]
+    return {
+        "model": first.get("model"),
+        "mode": first.get("llm_mode"),
+        "recency_hint": first.get("recency_hint"),
+        "probes": len({r["probe"]["probe_id"] for r in records}),
+        "backends": len({r["backend"] for r in records}),
+        "answers": sum(1 for r in records if r["status"] == "ok"),
+    }

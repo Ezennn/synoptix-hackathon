@@ -277,3 +277,24 @@ def as_deepeval_metric(threshold: float = 0.99):
             return "State Consistency (DAG)"
 
     return StateConsistencyMetric
+
+
+def value_in_text(text: str, value: str) -> bool:
+    """Is an answer-key value present in `text` — typically the retrieved context?
+
+    Polarity is stripped first: a context states the policy, it never says
+    "yes". Matching the compound form verbatim would fail on every multi-hop
+    probe and report the fact as missing when it was there.
+
+    The dashboard uses this to separate "the fact never arrived" from "the fact
+    arrived and the answer was wrong anyway". Those send an engineer to
+    different layers, so guessing between them is worse than not saying.
+    """
+    body = _normalize(text)
+    _, citation = _split_polarity(_normalize(value))
+    target = citation or _normalize(value)
+    if not body or not target:
+        return False
+    if re.search(_bounded(re.escape(target)), body):
+        return True
+    return _has_all_tokens(body, target)
