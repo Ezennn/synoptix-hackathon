@@ -52,12 +52,22 @@ CSS = """
 """
 
 
+# The run committed to the repo, so a fresh clone opens on real results rather
+# than an empty dashboard. Everything else under results/ is a working file.
+FROZEN_LOG = DEFAULT_LOG.parent / "run_log.recency-on.jsonl"
+
+
 def _available_logs():
-    """Every run log in results/, newest-looking first but with the default
-    log pinned to the top so the stage demo opens on it."""
-    logs = sorted(DEFAULT_LOG.parent.glob("run_log*.jsonl"))
-    logs.sort(key=lambda p: (p != DEFAULT_LOG, p.name))
-    return logs
+    """Every run log in results/, with the live working log first and the
+    frozen committed run next, so the demo opens on real results whether or
+    not anyone has run the benchmark on this machine."""
+    preferred = [DEFAULT_LOG, FROZEN_LOG]
+
+    def rank(path):
+        return (preferred.index(path) if path in preferred else len(preferred),
+                path.name)
+
+    return sorted(DEFAULT_LOG.parent.glob("run_log*.jsonl"), key=rank)
 
 
 def _log_summary(path) -> str:
