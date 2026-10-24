@@ -619,7 +619,7 @@
       ],
       "ask_after_session": 2,
       "ask_date": "2026-03-15",
-      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
       "superseded_values": [],
       "multi_hop": true,
       "notes": "phase-3 multi-hop over client timeline + regulation timeline"
@@ -948,7 +948,7 @@
       ],
       "ask_after_session": 2,
       "ask_date": "2026-03-15",
-      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
       "superseded_values": [],
       "multi_hop": true,
       "notes": "phase-3 multi-hop over client timeline + regulation timeline"
@@ -996,7 +996,7 @@
       ],
       "ask_after_session": 2,
       "ask_date": "2026-03-15",
-      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
       "superseded_values": [],
       "multi_hop": true,
       "notes": "phase-3 multi-hop over client timeline + regulation timeline"
@@ -1573,7 +1573,7 @@
       ],
       "ask_after_session": 2,
       "ask_date": "2026-03-15",
-      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
       "superseded_values": [],
       "multi_hop": true,
       "notes": "phase-3 multi-hop over client timeline + regulation timeline"
