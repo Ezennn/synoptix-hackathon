@@ -178,7 +178,7 @@ facts:
     valid_from: 2026-01-10
     valid_until: 2026-04-20
     superseded_by: suitability_policy_v2
-    tier: baseline
+    tier: direct
   - id: suitability_policy_v2
     entity: policy_mifid_suitability
     attribute: version
@@ -187,4 +187,4 @@ facts:
     valid_from: 2026-04-20
     valid_until: null
     superseded_by: null
-    tier: baseline
+    tier: direct
