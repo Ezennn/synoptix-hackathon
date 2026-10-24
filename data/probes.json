@@ -1,0 +1,1597 @@
+{
+  "probes": [
+    {
+      "probe_id": "p0001",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What is Acme Capital Partners LLP's full legal name?",
+      "fact_ids": [
+        "client_name"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "Acme Capital Partners LLP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0002",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What is Acme Capital Partners LLP's full legal name?",
+      "fact_ids": [
+        "client_name"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "Acme Capital Partners LLP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0003",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What is Acme Capital Partners LLP's full legal name?",
+      "fact_ids": [
+        "client_name"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "Acme Capital Partners LLP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0004",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What is Acme Capital Partners LLP's full legal name?",
+      "fact_ids": [
+        "client_name"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "Acme Capital Partners LLP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0005",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0006",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0007",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0008",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0009",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "aggressive",
+      "superseded_values": [
+        "conservative"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0010",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0011",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0012",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0013",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "aggressive",
+      "superseded_values": [
+        "conservative"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0014",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v2"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0015",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0016",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0017",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0018",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0019",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0020",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0021",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current holds_position of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_holds_crypto"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "crypto",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0022",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current holds_position of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_holds_crypto"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "crypto",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0023",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current ownership status of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_divested"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "divested",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0024",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current ownership status of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_divested"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "divested",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0025",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "Does Acme Capital Partners LLP currently have any crypto exposure? Answer yes or no.",
+      "fact_ids": [
+        "crypto_exposure"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "no",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0026",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "Does Acme Capital Partners LLP currently have any crypto exposure? Answer yes or no.",
+      "fact_ids": [
+        "crypto_exposure"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "no",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0027",
+      "phase": 2,
+      "tier": "reinstatement",
+      "question": "What is Acme Capital Partners LLP's current tax domicile?",
+      "fact_ids": [
+        "domicile_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "United Kingdom",
+      "superseded_values": [
+        "Luxembourg"
+      ],
+      "multi_hop": false,
+      "notes": "A/B/A; must track history, not just final value"
+    },
+    {
+      "probe_id": "p0028",
+      "phase": 2,
+      "tier": "reinstatement",
+      "question": "What is Acme Capital Partners LLP's current tax domicile?",
+      "fact_ids": [
+        "domicile_v2"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "Luxembourg",
+      "superseded_values": [
+        "United Kingdom"
+      ],
+      "multi_hop": false,
+      "notes": "A/B/A; must track history, not just final value"
+    },
+    {
+      "probe_id": "p0029",
+      "phase": 2,
+      "tier": "reinstatement",
+      "question": "What is Acme Capital Partners LLP's current tax domicile?",
+      "fact_ids": [
+        "domicile_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "Luxembourg",
+      "superseded_values": [
+        "United Kingdom"
+      ],
+      "multi_hop": false,
+      "notes": "A/B/A; must track history, not just final value"
+    },
+    {
+      "probe_id": "p0030",
+      "phase": 2,
+      "tier": "reinstatement",
+      "question": "What is Acme Capital Partners LLP's current tax domicile?",
+      "fact_ids": [
+        "domicile_v3"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "United Kingdom",
+      "superseded_values": [
+        "Luxembourg"
+      ],
+      "multi_hop": false,
+      "notes": "A/B/A; must track history, not just final value"
+    },
+    {
+      "probe_id": "p0031",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "Which version of the suitability policy is currently in force?",
+      "fact_ids": [
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "v1 (crypto allowed for professional clients up to 10% AUM)",
+      "superseded_values": [
+        "v2 (crypto prohibited for clients tiered conservative)"
+      ],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0032",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "Which version of the suitability policy is currently in force?",
+      "fact_ids": [
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "v1 (crypto allowed for professional clients up to 10% AUM)",
+      "superseded_values": [
+        "v2 (crypto prohibited for clients tiered conservative)"
+      ],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0033",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "Which version of the suitability policy is currently in force?",
+      "fact_ids": [
+        "suitability_policy_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "v2 (crypto prohibited for clients tiered conservative)",
+      "superseded_values": [
+        "v1 (crypto allowed for professional clients up to 10% AUM)"
+      ],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0034",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "Which version of the suitability policy is currently in force?",
+      "fact_ids": [
+        "suitability_policy_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "v2 (crypto prohibited for clients tiered conservative)",
+      "superseded_values": [
+        "v1 (crypto allowed for professional clients up to 10% AUM)"
+      ],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0035",
+      "phase": 3,
+      "tier": "transitive",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v2",
+        "suitability_policy_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "no (v2 (crypto prohibited for clients tiered conservative))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0036",
+      "phase": 3,
+      "tier": "transitive",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v2",
+        "suitability_policy_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "no (v2 (crypto prohibited for clients tiered conservative))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0037",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v2"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0038",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "Which version of the suitability policy is currently in force?",
+      "fact_ids": [
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "v1 (crypto allowed for professional clients up to 10% AUM)",
+      "superseded_values": [
+        "v2 (crypto prohibited for clients tiered conservative)"
+      ],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0039",
+      "phase": 3,
+      "tier": "direct",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v2",
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0040",
+      "phase": 3,
+      "tier": "direct",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v2",
+        "suitability_policy_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "no (v2 (crypto prohibited for clients tiered conservative))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0041",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0042",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0043",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0044",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0045",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current holds_position of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_holds_crypto"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "crypto",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0046",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0047",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0048",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current ownership status of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_divested"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "divested",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0049",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What is Acme Capital Partners LLP's full legal name?",
+      "fact_ids": [
+        "client_name"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "Acme Capital Partners LLP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0050",
+      "phase": 3,
+      "tier": "direct",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v1",
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0051",
+      "phase": 3,
+      "tier": "direct",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v2",
+        "suitability_policy_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "no (v2 (crypto prohibited for clients tiered conservative))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0052",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0053",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0054",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0055",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0056",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0057",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current ownership status of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_divested"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "divested",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0058",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0059",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0060",
+      "phase": 3,
+      "tier": "direct",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v2",
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0061",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0062",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "Does Acme Capital Partners LLP currently have any crypto exposure? Answer yes or no.",
+      "fact_ids": [
+        "crypto_exposure"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "no",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0063",
+      "phase": 3,
+      "tier": "direct",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v2",
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0064",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current holds_position of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_holds_crypto"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "crypto",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0065",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "aggressive",
+      "superseded_values": [
+        "conservative"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0066",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0067",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0068",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0069",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "Does Acme Capital Partners LLP currently have any crypto exposure? Answer yes or no.",
+      "fact_ids": [
+        "crypto_exposure"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "no",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0070",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0071",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0072",
+      "phase": 3,
+      "tier": "direct",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v2",
+        "suitability_policy_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "no (v2 (crypto prohibited for clients tiered conservative))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0073",
+      "phase": 2,
+      "tier": "reinstatement",
+      "question": "What is Acme Capital Partners LLP's current tax domicile?",
+      "fact_ids": [
+        "domicile_v3"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "United Kingdom",
+      "superseded_values": [
+        "Luxembourg"
+      ],
+      "multi_hop": false,
+      "notes": "A/B/A; must track history, not just final value"
+    },
+    {
+      "probe_id": "p0074",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0075",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0076",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0077",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0078",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0079",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "Does Acme Capital Partners LLP currently have any crypto exposure? Answer yes or no.",
+      "fact_ids": [
+        "crypto_exposure"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "no",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0080",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "Which version of the suitability policy is currently in force?",
+      "fact_ids": [
+        "suitability_policy_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "v2 (crypto prohibited for clients tiered conservative)",
+      "superseded_values": [
+        "v1 (crypto allowed for professional clients up to 10% AUM)"
+      ],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0081",
+      "phase": 3,
+      "tier": "direct",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v1",
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0082",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0083",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current holds_position of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_holds_crypto"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "crypto",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0084",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0085",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0086",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What is Acme Capital Partners LLP's full legal name?",
+      "fact_ids": [
+        "client_name"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "Acme Capital Partners LLP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0087",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "Which version of the suitability policy is currently in force?",
+      "fact_ids": [
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "v1 (crypto allowed for professional clients up to 10% AUM)",
+      "superseded_values": [
+        "v2 (crypto prohibited for clients tiered conservative)"
+      ],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0088",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "Which version of the suitability policy is currently in force?",
+      "fact_ids": [
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "v1 (crypto allowed for professional clients up to 10% AUM)",
+      "superseded_values": [
+        "v2 (crypto prohibited for clients tiered conservative)"
+      ],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0089",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0090",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0091",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "aggressive",
+      "superseded_values": [
+        "conservative"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0092",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What is Acme Capital Partners LLP's full legal name?",
+      "fact_ids": [
+        "client_name"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "Acme Capital Partners LLP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0093",
+      "phase": 2,
+      "tier": "transitive",
+      "question": "What is the current ownership status of client acme subB?",
+      "fact_ids": [
+        "subsidiary_b_divested"
+      ],
+      "ask_after_session": 3,
+      "ask_date": "2026-04-20",
+      "expected_answer": "divested",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "invalidated by inference, not direct contradiction"
+    },
+    {
+      "probe_id": "p0094",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "aggressive",
+      "superseded_values": [
+        "conservative"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0095",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme pension?",
+      "fact_ids": [
+        "pension_risk_v1"
+      ],
+      "ask_after_session": 1,
+      "ask_date": "2026-01-10",
+      "expected_answer": "aggressive",
+      "superseded_values": [
+        "conservative"
+      ],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    },
+    {
+      "probe_id": "p0096",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0097",
+      "phase": 1,
+      "tier": "baseline",
+      "question": "What base currency is used for Acme Capital Partners LLP?",
+      "fact_ids": [
+        "base_currency"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "GBP",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "control; value never changes"
+    },
+    {
+      "probe_id": "p0098",
+      "phase": 2,
+      "tier": "direct",
+      "question": "What is Acme Capital Partners LLP's current risk appetite for crypto assets?",
+      "fact_ids": [
+        "crypto_appetite_v2"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "conservative",
+      "superseded_values": [
+        "aggressive"
+      ],
+      "multi_hop": false,
+      "notes": "direct overwrite; recency check"
+    },
+    {
+      "probe_id": "p0099",
+      "phase": 3,
+      "tier": "direct",
+      "question": "Given Acme Capital Partners LLP's current crypto risk tier and the suitability policy currently in force, is holding crypto compliant? Answer yes or no and name the governing policy version.",
+      "fact_ids": [
+        "crypto_appetite_v2",
+        "suitability_policy_v1"
+      ],
+      "ask_after_session": 2,
+      "ask_date": "2026-03-15",
+      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "superseded_values": [],
+      "multi_hop": true,
+      "notes": "phase-3 multi-hop over client timeline + regulation timeline"
+    },
+    {
+      "probe_id": "p0100",
+      "phase": 2,
+      "tier": "partial",
+      "question": "What is the current risk tier of the client acme propbook?",
+      "fact_ids": [
+        "propbook_risk"
+      ],
+      "ask_after_session": 4,
+      "ask_date": "2026-06-01",
+      "expected_answer": "aggressive",
+      "superseded_values": [],
+      "multi_hop": false,
+      "notes": "scoped overwrite; must not invalidate sibling entity"
+    }
+  ]
+}

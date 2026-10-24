@@ -1,0 +1,190 @@
+# RegWatch AI — temporal answer key (the heart of the benchmark)
+#
+# Every fact carries temporal validity. A fact is CURRENT at an ask-time T iff
+#   valid_from <= T  and  (valid_until is null OR T < valid_until).
+# When a fact is superseded, its `valid_until` is set and `superseded_by` names
+# the id of the fact that replaced it. The DAG state-consistency metric reads
+# this file to decide, for a given probe fact_id + ask-time, whether the answer
+# asserts the CURRENT value and NOT any superseded one.
+#
+# Schema per fact:
+#   id            unique key
+#   entity        who/what the fact is about
+#   attribute     which property of the entity
+#   value         the asserted value (string; compared case-insensitively)
+#   stated_in_session  which session first asserts it (ties to data/sessions/)
+#   valid_from    ISO date the fact becomes true
+#   valid_until   ISO date it stops being true (null => still current)
+#   superseded_by id of the fact that replaced it (null => never superseded)
+#   tier          mutation difficulty this fact participates in:
+#                 baseline | direct | partial | transitive | reinstatement
+#   derivation    (transitive facts only) the rule that invalidates this fact
+#                 by inference rather than by direct contradiction
+#
+# Timelines modelled:
+#   Sessions: S1=2026-01-10, S2=2026-03-15, S3=2026-04-20, S4=2026-06-01
+#   Client:   client_acme (a corporate wealth-management client)
+#   Regulation: a MiFID-style suitability policy with its own versioned timeline
+
+facts:
+
+  # ---- TIER: baseline (never mutated — controls) --------------------------
+  - id: client_name
+    entity: client_acme
+    attribute: legal_name
+    value: Acme Capital Partners LLP
+    stated_in_session: 1
+    valid_from: 2026-01-10
+    valid_until: null
+    superseded_by: null
+    tier: baseline
+
+  - id: base_currency
+    entity: client_acme
+    attribute: base_currency
+    value: GBP
+    stated_in_session: 1
+    valid_from: 2026-01-10
+    valid_until: null
+    superseded_by: null
+    tier: baseline
+
+  # ---- TIER: direct overwrite (easy — tests recency) ----------------------
+  # Risk appetite flips aggressive -> conservative in S2. A recency-biased
+  # backend passes this; a forgetful one may still assert the old value.
+  - id: crypto_appetite_v1
+    entity: client_acme
+    attribute: risk_appetite_crypto
+    value: aggressive
+    stated_in_session: 1
+    valid_from: 2026-01-10
+    valid_until: 2026-03-15
+    superseded_by: crypto_appetite_v2
+    tier: direct
+  - id: crypto_appetite_v2
+    entity: client_acme
+    attribute: risk_appetite_crypto
+    value: conservative
+    stated_in_session: 2
+    valid_from: 2026-03-15
+    valid_until: null
+    superseded_by: null
+    tier: direct
+
+  # ---- TIER: partial / scoped overwrite (medium) --------------------------
+  # Only the pension sub-account turns conservative in S2; the prop book stays
+  # aggressive. A backend that nukes the fact globally gets the prop book wrong.
+  - id: pension_risk_v1
+    entity: client_acme_pension
+    attribute: risk_tier
+    value: aggressive
+    stated_in_session: 1
+    valid_from: 2026-01-10
+    valid_until: 2026-03-15
+    superseded_by: pension_risk_v2
+    tier: partial
+  - id: pension_risk_v2
+    entity: client_acme_pension
+    attribute: risk_tier
+    value: conservative
+    stated_in_session: 2
+    valid_from: 2026-03-15
+    valid_until: null
+    superseded_by: null
+    tier: partial
+  - id: propbook_risk
+    entity: client_acme_propbook
+    attribute: risk_tier
+    value: aggressive
+    stated_in_session: 1
+    valid_from: 2026-01-10
+    valid_until: null          # UNCHANGED by the S2 scoped mutation
+    superseded_by: null
+    tier: partial
+
+  # ---- TIER: transitive invalidation (hard — showcase) --------------------
+  # S1: Subsidiary B holds the crypto position.
+  # S3: the client divested Subsidiary B.
+  # => the crypto-exposure fact must be invalidated BY INFERENCE in S3, even
+  #    though nothing directly says "no crypto exposure".
+  - id: subsidiary_b_holds_crypto
+    entity: client_acme_subB
+    attribute: holds_position
+    value: crypto
+    stated_in_session: 1
+    valid_from: 2026-01-10
+    valid_until: 2026-04-20
+    superseded_by: null
+    tier: transitive
+    derivation: invalidated_by:subsidiary_b_divested
+  - id: subsidiary_b_divested
+    entity: client_acme_subB
+    attribute: ownership_status
+    value: divested
+    stated_in_session: 3
+    valid_from: 2026-04-20
+    valid_until: null
+    superseded_by: null
+    tier: transitive
+  - id: crypto_exposure
+    entity: client_acme
+    attribute: has_crypto_exposure
+    value: "no"            # current answer AFTER 2026-04-20 (was "yes" before)
+    stated_in_session: 3   # not stated — DERIVED; session is the trigger point
+    valid_from: 2026-04-20
+    valid_until: null
+    superseded_by: null
+    tier: transitive
+    derivation: subsidiary_b_holds_crypto AND subsidiary_b_divested => no exposure
+
+  # ---- TIER: reinstatement (adversarial — A/B then B/A) -------------------
+  # Domicile moves UK -> Luxembourg in S2, then back to UK in S4. A "latest
+  # wins" backend lands on UK by luck; the probe at S3 ask-time must say
+  # Luxembourg, catching backends that only keep the final value.
+  - id: domicile_v1
+    entity: client_acme
+    attribute: tax_domicile
+    value: United Kingdom
+    stated_in_session: 1
+    valid_from: 2026-01-10
+    valid_until: 2026-03-15
+    superseded_by: domicile_v2
+    tier: reinstatement
+  - id: domicile_v2
+    entity: client_acme
+    attribute: tax_domicile
+    value: Luxembourg
+    stated_in_session: 2
+    valid_from: 2026-03-15
+    valid_until: 2026-06-01
+    superseded_by: domicile_v3
+    tier: reinstatement
+  - id: domicile_v3
+    entity: client_acme
+    attribute: tax_domicile
+    value: United Kingdom
+    stated_in_session: 4
+    valid_from: 2026-06-01
+    valid_until: null
+    superseded_by: null
+    tier: reinstatement
+
+  # ---- Regulatory timeline (for Phase-3 multi-hop over TWO timelines) -----
+  - id: suitability_policy_v1
+    entity: policy_mifid_suitability
+    attribute: version
+    value: "v1 (crypto allowed for professional clients up to 10% AUM)"
+    stated_in_session: 1
+    valid_from: 2026-01-10
+    valid_until: 2026-04-20
+    superseded_by: suitability_policy_v2
+    tier: baseline
+  - id: suitability_policy_v2
+    entity: policy_mifid_suitability
+    attribute: version
+    value: "v2 (crypto prohibited for clients tiered conservative)"
+    stated_in_session: 3
+    valid_from: 2026-04-20
+    valid_until: null
+    superseded_by: null
+    tier: baseline
