@@ -1,0 +1,25 @@
+{
+  "session": 4,
+  "date": "2026-06-01",
+  "statements": [
+    {
+      "fact_id": "domicile_v3",
+      "text": "The client's tax domicile is now United Kingdom.",
+      "tier": "reinstatement"
+    }
+  ],
+  "distractors": [
+    {
+      "about_fact_id": "crypto_appetite_v1",
+      "text": "MEETING NOTE (archival): In an earlier session the client acme position was discussed at length. At that time the recorded value was 'aggressive', and the advisory team built the model portfolio around it. The committee spent considerable time on this in the prior quarter. Attendees reviewed exposure, liquidity and reporting implications of 'aggressive' in detail across roughly forty minutes of discussion."
+    },
+    {
+      "about_fact_id": "domicile_v2",
+      "text": "MEETING NOTE (archival): In an earlier session the client acme position was discussed at length. At that time the recorded value was 'Luxembourg', and the advisory team built the model portfolio around it. The committee spent considerable time on this in the prior quarter. Attendees reviewed exposure, liquidity and reporting implications of 'Luxembourg' in detail across roughly forty minutes of discussion."
+    },
+    {
+      "about_fact_id": "domicile_v1",
+      "text": "MEETING NOTE (archival): In an earlier session the client acme position was discussed at length. At that time the recorded value was 'United Kingdom', and the advisory team built the model portfolio around it. The committee spent considerable time on this in the prior quarter. Attendees reviewed exposure, liquidity and reporting implications of 'United Kingdom' in detail across roughly forty minutes of discussion."
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "session": 2,
+  "date": "2026-03-15",
+  "statements": [
+    {
+      "fact_id": "crypto_appetite_v2",
+      "text": "The client's risk appetite for crypto assets is now conservative.",
+      "tier": "direct"
+    },
+    {
+      "fact_id": "pension_risk_v2",
+      "text": "The client acme pension is classified risk tier: conservative.",
+      "tier": "partial"
+    },
+    {
+      "fact_id": "domicile_v2",
+      "text": "The client's tax domicile is now Luxembourg.",
+      "tier": "reinstatement"
+    }
+  ],
+  "distractors": [
+    {
+      "about_fact_id": "suitability_policy_v1",
+      "text": "MEETING NOTE (archival): In an earlier session the policy mifid suitability position was discussed at length. At that time the recorded value was 'v1 (crypto allowed for professional clients up to 10% AUM)', and the advisory team built the model portfolio around it. This was reaffirmed in several earlier calls with the relationship team. Attendees reviewed exposure, liquidity and reporting implications of 'v1 (crypto allowed for professional clients up to 10% AUM)' in detail across roughly forty minutes of discussion."
+    },
+    {
+      "about_fact_id": "crypto_appetite_v1",
+      "text": "MEETING NOTE (archival): In an earlier session the client acme position was discussed at length. At that time the recorded value was 'aggressive', and the advisory team built the model portfolio around it. Historical minutes record extensive debate before this was set. Attendees reviewed exposure, liquidity and reporting implications of 'aggressive' in detail across roughly forty minutes of discussion."
+    },
+    {
+      "about_fact_id": "domicile_v2",
+      "text": "MEETING NOTE (archival): In an earlier session the client acme position was discussed at length. At that time the recorded value was 'Luxembourg', and the advisory team built the model portfolio around it. The committee spent considerable time on this in the prior quarter. Attendees reviewed exposure, liquidity and reporting implications of 'Luxembourg' in detail across roughly forty minutes of discussion."
+    }
+  ]
+}
