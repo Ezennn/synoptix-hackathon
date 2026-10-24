@@ -1,223 +1,153 @@
-# Erased & Replaced
+# RegWatch AI — Memory-Tool Benchmark Harness
 
-**Does AI prompt compression delete who you are, and does the AI then make someone up to fill the gap?**
+**Which agent-memory framework actually keeps track of the truth when facts change over time — and which one quietly makes things up?**
 
-Built for the Synoptix ethical-AI hackathon, Track 1: Bias Mitigation.
+Built for the Synoptix hackathon. We benchmark five memory/context backends head-to-head on a stress test designed to break them, and score them with metrics that test **the memory layer itself**, not the LLM's reasoning.
 
-> Compression erases who you are; the AI replaces you with someone else. We measure both steps and fix them.
+> A standard RAG system retrieves the January fact *and* the March correction with equal confidence, then hallucinates conflicting advice. We measure which memory tools resolve that contradiction, which forget, and what it costs.
 
----
+## The problem (plain English)
 
-## What we're actually doing (plain English)
+An AI advising a client over months has to track facts that **change**. A client says in January "we have a high-risk appetite for crypto," then in March "we are now strictly conservative and have divested from crypto." Ask a naive system what the client's strategy is and it retrieves both statements with equal similarity — and gives contradictory advice.
 
-AI is charged by the word, technically by the "token". To save money, many companies **shorten** text before an AI reads it. Tools such as LLMLingua automatically delete the words they think are unimportant, or a model summarises the text into a few lines.
+Good agent memory is supposed to fix this: invalidate the stale fact, keep the current one, and still remember the history. Different tools claim to do this very differently — temporal knowledge graphs, OS-style memory paging, hand-written state reducers, or just trimming old messages. **Nobody benchmarks them against each other on temporal correctness.** That's what this project does.
 
-Nobody checks *which* words get deleted. We think the deleted words are often the ones that describe **who a person is** or **what they need**:
+We drive the same multi-session scenario through five backends, ask the same probe questions, and score each on whether it keeps the current truth, resists clutter, and avoids hallucination — plus latency and cost.
 
-- their name
-- their pronouns ("my pronouns are they/them")
-- an adjustment request ("I'll need interview materials in large print")
-- a caring responsibility ("I care for my mum, so I need morning slots")
+## What makes this a real test (not an API-wrapper demo)
 
-When that information disappears, the AI doesn't say "I don't know". We expect it to **fill the gap with a default**: it calls the person "he", assumes a typical name, or assumes they need nothing.
+The whole point is to test the **memory tool**, not the model behind it. So:
 
-So the harm happens in two steps:
+1. The LLM is held constant across all backends (same model, same prompt template, routed through one cached gateway).
+2. Every backend is wrapped by a **uniform adapter** returning the same shape: `(answer, retrieval_context, tokens, latency)`. The only thing that varies between runs is *which memory layer assembled the context*.
+3. Metrics score the **retrieved context** and the **answer against a temporal answer key**, so a right answer for the wrong reason (luck, recency bias) is caught.
 
-1. **Erased:** compression deletes the detail.
-2. **Replaced:** the AI invents a stereotypical stand-in.
+## The five backends under test
 
-The person told the system. The system forgot. Then it made them up.
+| Backend | Pattern | Hypothesis |
+|---|---|---|
+| **Sanity** (full history, no memory) | Everything in context, no management | Ceiling on accuracy, floor on cost — the control |
+| **LiteLLM trim** | Hard message truncation | Fast and cheap, catastrophic forgetting on multi-hop |
+| **LangGraph** | Checkpointer + custom state reducers | Full control, low cost, but you hand-write the pruning |
+| **Zep / Graphiti** | Temporal knowledge graph | Best contradiction resolution, higher write latency |
+| **Letta / MemGPT** | OS-style self-editing memory paging | Strong autonomy, risk of self-edit corruption |
 
-**What we do about it:**
+All five run through the identical adapter interface so they're directly comparable.
 
-1. Write fake CVs and support requests. Each one comes in versions that are identical apart from one detail (for example, he vs she vs they).
-2. Shorten every version using several real compression tools, at several strengths.
-3. Check what got deleted.
-4. Ask an AI questions about the shortened text ("What pronouns should we use?", "Does this person need an adjustment?") and see whether it answers correctly, admits it doesn't know, or makes something up.
-5. Have the AI do a real task, such as writing an interview invitation, and see whether the outcome changes.
-6. Test cheap fixes and show they stop the problem while still saving most of the money.
+## The stress test — 4 phases, graded difficulty
 
-**Why it matters:** companies test their AI models for bias, but the compression step in front of the model is usually never tested. If someone asks for a reasonable adjustment and the pipeline quietly deletes it, the person loses out, and the organisation may still be responsible.
+A deterministic multi-session script. Each phase has escalating sub-tiers so results show a difficulty curve, not a single pass/fail.
 
----
+**Phase 1 — Baseline ingestion.** Feed complex corporate financial policies, historical client statements, and meeting notes across several simulated sessions.
 
-## How the harm happens
+**Phase 2 — Entity mutation & contradiction.**
+- *Direct overwrite* (easy): "risk appetite is now conservative" — tests recency.
+- *Scoped overwrite* (medium): "conservative for the pension sub-account, keep aggressive on the prop book" — does the tool scope the invalidation, or nuke the fact globally?
+- *Transitive invalidation* (hard): divest Subsidiary B, where an earlier fact said Subsidiary B holds the crypto position — the crypto exposure must be invalidated *by inference*.
+- *Reinstatement* (adversarial): A→B in session 2, then B→A in session 4 — does it track full history or just overwrite?
+
+**Phase 3 — Multi-hop reasoning.** A question needing synthesis across Session 1 (January), Session 2 (April), **and** a policy document that was itself superseded — forcing temporal validity over two independent timelines (client state + regulation version) at once.
+
+**Phase 4 — Adversarial noise.** Flood active history with *plausible-but-stale* distractors (a long meeting note discussing the OLD risk tier), not random JSON — the hard case that actually stresses precision and faithfulness.
+
+**Context-length sweep:** rerun the probes at 5 / 20 / 50 / 100 turns to produce the "context rot" curve.
+
+## Metrics — testing the memory, not the LLM
+
+| Axis | Method(s) | Why | Tooling |
+|---|---|---|---|
+| **1. State Consistency** (overwrites stale facts) | Custom **DAG metric** (primary) + G-Eval (backstop) | Not a standard metric: faithfulness can't tell "old true fact" from "current true fact" — both are grounded. Needs a deterministic yes/no against the answer key. | DeepEval `DAGMetric` |
+| **2. Context Precision** (low filler / noise resistance) | **Ragas `context_precision`** + DeepEval `ContextualPrecisionMetric` (ranking-aware) + `ContextualRelevancy` | Scores Phase 4: how much stale/irrelevant text the memory layer injected. | Ragas, DeepEval |
+| **3. Faithfulness / Grounding** (no hallucination) | DeepEval `FaithfulnessMetric` (atomic-claim) + **`ContextualRecall`** | Faithfulness catches invented claims; recall catches *silent forgetting* — a tool can be faithful but drop a fact it should have surfaced. | DeepEval |
+| **4. Retrieval Latency (ms)** | Wall-clock timing in the adapter | Direct measurement | Harness |
+| **5. Cost Efficiency ($/query)** | Token accounting at the gateway | Direct measurement | Harness |
+
+The headline per-backend result is a row on the scoreboard across all five axes; the headline *story* is the context-rot curve (axes 1–3 vs. session length).
+
+## Architecture — Option 2: one FastAPI service, hot-swappable backend plugins
+
+A single service orchestrates all five backends as plugins registered by name and called in parallel; a demo UI shows live side-by-side columns handling the same conflicting update.
 
 ```
- Person writes ──► Compressor ──► Short prompt ──► LLM reads ──► Decision
- name, pronouns,    deletes words   details gone,    fills each gap  invitation,
- stated needs       to save tokens  nothing marked   with a default  triage, reply
-                         │                                │              │
-                   Erasure Rate              Refill Rate,           Silent Flip
-                                             Default Drift
+        [Demo UI: five live columns]
+                   │
+                   ▼
+        ┌───────────────────────┐        ┌───────────────────────┐
+        │ FastAPI orchestrator  │◄──────►│ Fact extractor        │
+        │ /load /update /ask    │        │ proposes, user confirms│
+        │ /scores               │        └───────────────────────┘
+        └──────────┬────────────┘
+                   │  registered by name, called in parallel
+   ┌────────┬──────┴─────┬────────┬────────┐
+   ▼        ▼            ▼        ▼        ▼
+ Sanity  LiteLLM-trim  LangGraph  Zep    Letta      (each optionally wrapped by Memory Guard)
+   │                                               │
+   ▼                                               ▼
+┌───────────────┐   ┌───────────────┐   ┌───────────────────────────┐
+│ LLM gateway   │   │ Evaluator     │   │ SQLite store              │
+│ LiteLLM,cached│   │ scores live   │   │ runs, scores, live facts  │
+└───────────────┘   └───────────────┘   └───────────────────────────┘
 ```
 
----
+**Demo-safety variant:** the engine runs the full benchmark offline and writes results; the UI *replays* those results in live-looking columns, with an optional "re-run live" button. Keeps the wow factor without live-API flakiness on stage.
 
-## Research questions
-
-| # | Question | Hypothesis |
-|---|---|---|
-| RQ1 | Does compression delete identity and needs information more than neutral information of the same length? | Yes, and more at higher compression |
-| RQ2 | Is the deletion unequal across groups? | Non-Western names, they/them pronouns and adjustment requests are erased more |
-| RQ3 | When information is gone, does the model refill it or say "unknown"? | It refills, leaning towards defaults (male, Western name, no needs) |
-| RQ4 | Does *silent* deletion cause more refilling than *marked* deletion ("[not stated]")? | Yes |
-| RQ5 | Can cheap fixes cut the harm while keeping most of the savings? | Protected fields plus erasure markers keep at least 80% of the savings |
-
-Any result is useful. If compression makes some decisions *fairer* by hiding identity, we report that too, and show where it breaks down.
-
----
-
-## Metrics
-
-| Metric | What it measures |
-|---|---|
-| **Erasure Rate** | Share of identity or needs facts lost after compression, per group and compression level |
-| **Refill Rate** | When a fact was lost, how often the AI gives a specific answer anyway instead of "unknown" |
-| **Default Drift** | What the AI fills in, e.g. what share of lost pronouns became "he" |
-| **Silent Flip** | How often the real decision changes (e.g. adjustment no longer offered) because of compression |
-
-The headline fairness number is the **gap between groups** (e.g. Erasure Rate for they/them minus he/she), with a 95% confidence interval.
-
----
-
-## Experiment design
-
-**Scenarios**
-- **A: Hiring.** CVs and cover letters compressed before an AI screens them and drafts an interview invitation.
-- **B: Support requests.** People describing their situation to an assistant, compressed before it triages and replies.
-
-**Counterfactual variants:** each base document has one slot that changes. Everything else stays identical.
-
-| Slot | Variants | Length-matched control |
-|---|---|---|
-| Name | Western vs non-Western (several names each, from published lists) | None needed |
-| Pronouns | he / she / they | None needed |
-| Adjustment request | e.g. large print, screen reader | A hobby sentence |
-| Caring responsibility | e.g. needs morning slots | A commute sentence |
-
-**Compressors**
-- LLMLingua-2 (main tool; gives a keep-probability for every word)
-- LLMLingua (original, perplexity-based)
-- LLM summarisation
-- Truncation (keep the first N tokens)
-- Random deletion (baseline)
-
-**Compression ratios:** 2×, 3×, 5×, 10×
-
-**Three versions of every document**
-1. **Original:** the ground truth
-2. **Compressed:** information may be silently missing
-3. **Marked neutral:** the detail replaced with "[not stated]"
-
-**Probes:** fact questions (name, pronouns, needs), one open "describe this person" question, and the real decision task. "Not stated" is always an allowed answer.
-
-**Target models:** one small open model run locally, plus one API model.
-
----
-
-## Mitigations tested
-
-| Fix | Targets | How it works |
-|---|---|---|
-| Protected fields | Erasure | Force-keep names, pronouns and stated needs |
-| Erasure markers | Replacement | Insert "[personal details removed]" wherever such text was cut |
-| Abstain instruction | Replacement | Tell the model never to assume unstated personal details |
-| Extract then compress | Both | Pull key facts into a short header, then compress the rest |
-
-Each fix is scored on the fairness metrics **and** on how much compression (cost saving) it keeps.
-
----
-
-## Analysis
-
-- 95% bootstrap confidence intervals, resampling base documents
-- Paired tests within each counterfactual pair (McNemar's test for yes/no outcomes)
-- Logistic regression on what predicts a fact being deleted (slot type, group, compressor, ratio, position)
-- LLMLingua-2 keep-probabilities and tokens per word, to explain *why* words are dropped
-- Benjamini–Hochberg correction for multiple comparisons
-- Hand-check of 50 probe answers against the automatic scorer
-- Hypotheses and primary comparisons pre-registered before the full run
-
----
-
-## Planned repo layout
+## Repo layout (planned)
 
 ```
-erased-and-replaced/
+synoptix-hackathon/
 ├── data/
-│   ├── base_documents/      # synthetic CVs and support requests
-│   ├── slots/               # names, pronouns, adjustment and caring phrases, controls
-│   └── variants/            # generated counterfactual documents
+│   ├── templates/            # YAML scenario templates + seed
+│   ├── facts.yaml            # temporal answer key: valid_from / valid_until / superseded_by
+│   └── sessions/             # generated multi-session transcripts
 ├── src/
-│   ├── generate_variants.py # builds counterfactual docs from bases + slots
-│   ├── compress.py          # runs every compressor at every ratio
-│   ├── probe.py             # asks the target models fact, open and decision probes
-│   ├── score.py             # turns answers into Erasure / Refill / Drift / Flip
-│   ├── analyse.py           # CIs, tests, regression, charts
-│   └── fixes.py             # protected fields, markers, abstain prompt, extract-then-compress
-├── results/                 # cached model outputs and metric tables
-├── figures/                 # charts for the pitch
-├── app.py                   # Streamlit demo
-├── PREREGISTRATION.md       # hypotheses and primary comparisons, fixed before the full run
+│   ├── generate.py           # builds facts, session phrasing, probe checks from templates
+│   ├── adapters/             # ONE interface, five implementations
+│   │   ├── base.py           # MemoryBackend protocol: load/update/ask -> (answer, context, tokens, latency)
+│   │   ├── sanity.py
+│   │   ├── litellm_trim.py
+│   │   ├── langgraph_state.py
+│   │   ├── zep_graph.py
+│   │   └── letta_paging.py
+│   ├── llm.py                # cached LLM gateway: retries, cost accounting
+│   ├── orchestrator.py       # FastAPI app: /load /update /ask /scores
+│   ├── evaluator.py          # DeepEval + Ragas + custom DAG metric
+│   └── metrics/
+│       └── dag_consistency.py# custom temporal state-consistency DAG metric
+├── ui/                       # demo: five live columns
+├── results/                  # run_log.jsonl, scores, cached outputs
+├── figures/                  # scoreboard + context-rot charts
+├── app.py                    # launches orchestrator + UI
 └── README.md
 ```
 
 ## Getting started (planned)
 
 ```bash
-git clone <repo-url>
-cd erased-and-replaced
-pip install -r requirements.txt   # llmlingua, pandas, scipy, statsmodels, streamlit, ...
+git clone https://github.com/Ezennn/synoptix-hackathon
+cd synoptix-hackathon
+pip install -r requirements.txt   # fastapi, deepeval, ragas, zep-python, letta, langgraph, litellm, ...
 
-python src/generate_variants.py
-python src/compress.py --ratios 2 3 5
-python src/probe.py --model <local-or-api-model>
-python src/score.py
-python src/analyse.py             # writes tables to results/ and charts to figures/
-
-streamlit run app.py              # live demo
+python src/generate.py                      # build facts.yaml + sessions
+uvicorn src.orchestrator:app --reload       # start the service
+# POST /load (ingest Phase 1) -> /update (Phase 2 mutations) -> /ask (probes) -> /scores
 ```
 
-Random seeds, model versions and prompts are recorded in `results/` so every chart can be regenerated with one command.
-
----
+Seeds, model versions and prompts are recorded in `results/` so every chart regenerates with one command.
 
 ## The demo
 
-1. Paste a cover letter that includes "they/them" and a large-print request.
-2. Slide the compression level up and watch deleted words turn red and disappear.
-3. See the AI's invitation: wrong pronoun, no adjustment offered.
-4. Turn on the fix. The details survive, the invitation is correct, and the prompt is still short.
-5. Show the chart: it's not one example, it's the whole test set.
+1. Load the January client profile into all five backends at once.
+2. Push the March contradiction ("divested from crypto, now conservative") through `/update`.
+3. Ask "what is the client's current crypto strategy?" — watch five columns answer side by side.
+4. Zep invalidates the old fact; LiteLLM-trim confidently gives the stale January answer.
+5. Flip to the scoreboard: it's not one example, it's the whole 100-question test set, with the context-rot curve.
 
----
+## Why this wins
 
-## Ethics
+1. **Rigorous:** it benchmarks and scores trade-offs (accuracy vs latency vs cost), not just wraps an API.
+2. **High business impact:** temporal correctness is a real multi-billion-dollar compliance/advisory bottleneck.
+3. **Visually impressive:** live side-by-side columns show each framework handling the same contradiction differently.
 
-- **Synthetic data only.** No real people's CVs, disabilities or pronouns.
-- **Names used respectfully.** They come from published research lists, and results are reported by group, never by individual name.
-- **We fix the system, not the person.** We never suggest people drop their pronouns or needs to survive compression.
-- **Protected fields are a value judgement.** We say so, and recommend affected groups help define them.
-- **Legal points are questions, not advice.** We raise the UK Equality Act "knowledge" issue around reasonable adjustments as a governance question, not a legal conclusion.
+## Division of work
 
-## Limitations
-
-- Synthetic documents are cleaner than real ones.
-- Results cover the compressors and models we tested.
-- "Western vs non-Western" names is a crude grouping, so each name set is also reported separately.
-- English only. Code-switched and non-English text is future work.
-- An LLM judge scores open answers. Hand checks reduce that error but don't remove it.
-- Hackathon-sized samples give wide confidence intervals; we report them rather than hide them.
-
----
-
-## Related work
-
-- Łajewska et al., [Understanding and Improving Information Preservation in Prompt Compression for LLMs](https://aclanthology.org/2025.findings-emnlp.949.pdf), EMNLP Findings 2025. Compressors often lose names, dates and numbers; tested in English only, with no fairness analysis.
-- [An Empirical Study on Prompt Compression for Large Language Models](https://arxiv.org/html/2505.00019v1), 2025. Six compressors compared on 13 datasets; no demographic analysis.
-- [LLMLingua-2: Data Distillation for Efficient and Faithful Task-Agnostic Prompt Compression](https://arxiv.org/html/2403.12968v2), 2024.
-- [Prompt Fairness: Sub-group Disparities in LLMs](https://arxiv.org/html/2511.19956v1), 2025. The same question phrased in different demographic styles gets different answers; does not cover compression.
-- Haq & Saldías, [Dialect vs Demographics: Quantifying LLM Bias](https://arxiv.org/html/2604.21152), 2026.
-
-**Our contribution:** to our knowledge, this is the first study of whether compression erases identity and needs *unequally*, and whether the model then *refills* the gap with stereotyped defaults.
+Two agents, two machines, one repo. See [`PLAN.md`](PLAN.md) for the full split, the shared interface contract, and the branch workflow.
