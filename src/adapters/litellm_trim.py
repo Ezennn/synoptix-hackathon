@@ -18,11 +18,8 @@ from typing import Dict, List
 
 from src.adapters.base import TurnResult
 from src.llm import LLMGateway, get_gateway
+from src.prompts import system_prompt
 
-_SYSTEM = (
-    "You are a compliance and portfolio advisor. Answer using ONLY the facts "
-    "provided. Prefer the most recent. Answer with the current value only."
-)
 
 
 def _est_tokens(text: str) -> int:
@@ -63,7 +60,7 @@ class LiteLLMTrimBackend:
         prompt = "RECENT FACTS:\n" + "\n".join("- " + c for c in kept) + \
                  "\n\nQUESTION: " + question
         resp = self.gw.complete(
-            [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": prompt}]
+            [{"role": "system", "content": system_prompt()}, {"role": "user", "content": prompt}]
         )
         return TurnResult(
             answer=resp.text,

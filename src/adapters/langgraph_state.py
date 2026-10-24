@@ -26,11 +26,8 @@ from typing import Dict, List, Tuple
 
 from src.adapters.base import TurnResult
 from src.llm import LLMGateway, get_gateway
+from src.prompts import system_prompt
 
-_SYSTEM = (
-    "You are a compliance and portfolio advisor. Answer using ONLY the facts "
-    "provided. Answer with the current value only."
-)
 
 # Keyword -> attribute key, used to collapse statements about the same property.
 _ATTR_PATTERNS: List[Tuple[str, str]] = [
@@ -124,7 +121,7 @@ class LangGraphStateBackend:
             "- " + c for c in pruned
         ) + "\n\nQUESTION: " + question
         resp = self.gw.complete(
-            [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": prompt}]
+            [{"role": "system", "content": system_prompt()}, {"role": "user", "content": prompt}]
         )
         return TurnResult(
             answer=resp.text,

@@ -15,12 +15,8 @@ from typing import Dict, List
 
 from src.adapters.base import TurnResult
 from src.llm import LLMGateway, get_gateway
+from src.prompts import system_prompt
 
-_SYSTEM = (
-    "You are a compliance and portfolio advisor. Answer the user's question "
-    "using ONLY the facts provided. If facts conflict, prefer the most recent. "
-    "Be concise — answer with the current value only."
-)
 
 
 class SanityBackend:
@@ -45,7 +41,7 @@ class SanityBackend:
             "- " + c for c in context
         ) + "\n\nQUESTION: " + question
         resp = self.gw.complete(
-            [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": prompt}]
+            [{"role": "system", "content": system_prompt()}, {"role": "user", "content": prompt}]
         )
         return TurnResult(
             answer=resp.text,

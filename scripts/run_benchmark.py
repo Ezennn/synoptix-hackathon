@@ -61,6 +61,9 @@ def parse_args(argv=None):
     p.add_argument("--cache-dir", default=None,
                    help="gateway cache. Use a fresh dir to measure real latency: "
                         "cached turns return in ~0 ms")
+    p.add_argument("--no-recency-hint", action="store_true",
+                   help="drop 'If facts conflict, prefer the most recent' from "
+                        "the system prompt — the B arm of that experiment")
     p.add_argument("--dry-run", action="store_true",
                    help="show the plan and make no calls")
     return p.parse_args(argv)
@@ -76,6 +79,7 @@ def main(argv=None) -> int:
         os.environ["REGWATCH_MODEL"] = args.model
     if args.cache_dir:
         os.environ["REGWATCH_CACHE_DIR"] = args.cache_dir
+    os.environ["REGWATCH_RECENCY_HINT"] = "0" if args.no_recency_hint else "1"
 
     sys.path.insert(0, str(ROOT))
     from src.evaluator import (  # noqa: E402
@@ -97,7 +101,8 @@ def main(argv=None) -> int:
 
     planned = sum(len(v) for v in by_session.values())
     prov = provenance()
-    print("mode={llm_mode}  model={model}  cache={cache_dir}".format(**prov))
+    print("mode={llm_mode}  model={model}  cache={cache_dir}  "
+          "recency_hint={recency_hint}".format(**prov))
     print("backends: {}".format(", ".join(args.backends)))
     print("probes per backend: {}  ->  {} calls".format(
         planned, planned * len(args.backends)))

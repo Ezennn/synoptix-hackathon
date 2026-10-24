@@ -138,6 +138,8 @@ def provenance() -> Dict[str, Any]:
         "llm_mode": os.environ.get("REGWATCH_LLM_MODE", "stub").lower(),
         "model": os.environ.get("REGWATCH_MODEL", "gpt-4o-mini"),
         "cache_dir": os.environ.get("REGWATCH_CACHE_DIR"),
+        # Which arm of the prompt experiment produced this row.
+        "recency_hint": os.environ.get("REGWATCH_RECENCY_HINT", "1") != "0",
     }
 
 
