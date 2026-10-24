@@ -143,6 +143,10 @@ def _column(record, probe) -> None:
         verdict = ("STALE FACT REACHED THE MODEL", "#e5484d")
     elif stale is False:
         verdict = ("context current", "#30a46c")
+    elif not (record["probe"] or {}).get("superseded_values"):
+        # A control probe: the fact never changed, so there is nothing stale to
+        # find. Saying "unknown" here reads as a bug rather than a clean result.
+        verdict = ("control — nothing to supersede", "#8b8d98")
     else:
         verdict = ("unknown", "#8b8d98")
     st.markdown(
