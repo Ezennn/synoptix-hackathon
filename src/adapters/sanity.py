@@ -54,3 +54,12 @@ class SanityBackend:
             tokens_out=resp.tokens_out,
             latency_ms=resp.latency_ms,
         )
+
+
+def build(gateway: LLMGateway = None) -> SanityBackend:
+    """Zero-arg factory for the registry (src/registry.py BackendSpec.factory).
+
+    Called as ``build()`` with no args -> uses the shared default gateway.
+    The optional ``gateway`` lets a test or the orchestrator inject one.
+    """
+    return SanityBackend(gateway)

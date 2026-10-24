@@ -133,3 +133,9 @@ class LangGraphStateBackend:
             tokens_out=resp.tokens_out,
             latency_ms=resp.latency_ms,
         )
+
+
+def build(gateway: LLMGateway = None) -> LangGraphStateBackend:
+    """Zero-arg factory for the registry; uses the shared default gateway when
+    called as ``build()``. Optional ``gateway`` for injection."""
+    return LangGraphStateBackend(gateway)
