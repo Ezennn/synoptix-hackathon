@@ -91,6 +91,21 @@ def highlight(text: str, stale_values: Optional[List[str]],
     return out
 
 
+def _mean(values: List[Any]) -> Optional[float]:
+    clean = [v for v in values if v is not None]
+    return (sum(clean) / len(clean)) if clean else None
+
+
+def _percentile(values: List[float], pct: float) -> Optional[float]:
+    """Nearest-rank percentile — no interpolation, so the number returned is a
+    latency that actually happened."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    index = int(round((pct / 100.0) * (len(ordered) - 1)))
+    return ordered[max(0, min(len(ordered) - 1, index))]
+
+
 def scoreboard(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     order = backend_order()
     by_backend: Dict[str, List[Dict[str, Any]]] = {}
@@ -105,18 +120,29 @@ def scoreboard(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         scored = [r["scores"] for r in ok if r.get("scores")]
         consistencies = [s["consistency"]["value"] for s in scored
                          if s.get("consistency", {}).get("value") is not None]
+        latencies = [s["latency_ms"] for s in scored if s.get("latency_ms") is not None]
+        costs = [s["cost_usd"] for s in scored if s.get("cost_usd") is not None]
+        correct = sum(1 for v in consistencies if v >= 1.0)
+        total_cost = sum(costs) if costs else None
+
         rows.append({
             "backend": name,
             "probes": len(recs),
             "answered": len(ok),
+            "correct": correct,
             "stale_context_rate": (sum(known) / len(known)) if known else None,
             "consistency_rate": (sum(consistencies) / len(consistencies))
                                 if consistencies else None,
-            "avg_tokens_in": (sum(s["tokens_in"] for s in scored) / len(scored))
-                             if scored else None,
-            "total_cost_usd": sum(s["cost_usd"] for s in scored) if scored else 0.0,
-            "avg_latency_ms": (sum(s["latency_ms"] for s in scored) / len(scored))
-                              if scored else None,
+            "avg_tokens_in": _mean([s["tokens_in"] for s in scored]),
+            "avg_tokens_out": _mean([s["tokens_out"] for s in scored]),
+            "avg_latency_ms": _mean(latencies),
+            "p95_latency_ms": _percentile(latencies, 95),
+            "total_cost_usd": total_cost,
+            # Both cost measures are None when the model's rate is unknown,
+            # rather than silently reported as zero.
+            "cost_per_1k_usd": (total_cost / len(costs) * 1000) if costs else None,
+            "cost_per_correct_usd": (total_cost / correct)
+                                    if (total_cost is not None and correct) else None,
         })
     rows.sort(key=lambda r: order.index(r["backend"]) if r["backend"] in order else 999)
     return rows

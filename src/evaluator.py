@@ -29,10 +29,27 @@ RESULTS_DIR = Path("results")
 RUN_LOG = RESULTS_DIR / "run_log.jsonl"
 DB_PATH = RESULTS_DIR / "scores.sqlite"
 
-# Answer-model price per 1M tokens. Override per run; the figure on the chart
-# must match the model actually used.
-PRICE_IN_PER_M = 3.00
-PRICE_OUT_PER_M = 15.00
+# Answer-model price per 1M tokens, by model.
+#
+# Cost is reported only for a model whose rate we actually know: an unrecognised
+# model yields None rather than a plausible-looking number, because a wrong cost
+# on a slide is worse than a missing one. Set the rate for any model with
+# REGWATCH_PRICE_IN_PER_M / REGWATCH_PRICE_OUT_PER_M.
+_PRICES_PER_M = {
+    "gpt-4o-mini": (0.15, 0.60),
+}
+
+
+def _price_per_m(model: Optional[str]) -> Optional[tuple]:
+    env_in = os.environ.get("REGWATCH_PRICE_IN_PER_M")
+    env_out = os.environ.get("REGWATCH_PRICE_OUT_PER_M")
+    if env_in and env_out:
+        return float(env_in), float(env_out)
+    name = (model or "").lower()
+    for key, rate in _PRICES_PER_M.items():
+        if key in name:
+            return rate
+    return None
 
 
 @dataclass
@@ -84,8 +101,12 @@ def _consistency(turn: TurnResult, probe: Probe) -> Dict[str, Any]:
         return {"value": None, "reason": "scorer error: {}".format(exc)}
 
 
-def _cost_usd(turn: TurnResult) -> float:
-    return (turn.tokens_in / 1e6) * PRICE_IN_PER_M + (turn.tokens_out / 1e6) * PRICE_OUT_PER_M
+def _cost_usd(turn: TurnResult) -> Optional[float]:
+    rate = _price_per_m(os.environ.get("REGWATCH_MODEL", "gpt-4o-mini"))
+    if rate is None:
+        return None
+    price_in, price_out = rate
+    return (turn.tokens_in / 1e6) * price_in + (turn.tokens_out / 1e6) * price_out
 
 
 def score_live(turn: TurnResult, probe: Probe) -> Dict[str, Any]:
@@ -96,7 +117,7 @@ def score_live(turn: TurnResult, probe: Probe) -> Dict[str, Any]:
         "tokens_in": turn.tokens_in,
         "tokens_out": turn.tokens_out,
         "context_chunks": len(turn.retrieval_context),
-        "cost_usd": round(_cost_usd(turn), 6),
+        "cost_usd": None if _cost_usd(turn) is None else round(_cost_usd(turn), 8),
         # Axes 2 and 3 are filled by score_offline().
         "context_precision": None,
         "faithfulness": None,

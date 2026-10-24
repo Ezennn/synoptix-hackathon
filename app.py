@@ -154,11 +154,15 @@ def _scoreboard(records) -> None:
         rows.append({
             "backend": row["backend"],
             "answered": "{}/{}".format(row["answered"], row["probes"]),
-            "stale context": _pct(row["stale_context_rate"]),
+            "correct": "{}".format(row["correct"]),
             "consistency": _pct(row["consistency_rate"]),
-            "avg tokens in": _num(row["avg_tokens_in"]),
-            "total cost $": "${:.5f}".format(row["total_cost_usd"]),
-            "avg latency ms": _num(row["avg_latency_ms"]),
+            "stale context": _pct(row["stale_context_rate"]),
+            "tokens in": _num(row["avg_tokens_in"]),
+            "tokens out": _num(row["avg_tokens_out"]),
+            "latency ms": _num(row["avg_latency_ms"]),
+            "p95 ms": _num(row["p95_latency_ms"]),
+            "$ / 1k questions": _usd(row["cost_per_1k_usd"]),
+            "$ / correct answer": _usd(row["cost_per_correct_usd"]),
         })
     # Every cell is a string: a column mixing floats with the "—" placeholder
     # fails Arrow serialisation.
@@ -212,6 +216,11 @@ def _pct(value):
 
 def _num(value):
     return "—" if value is None else "{:.1f}".format(value)
+
+
+def _usd(value):
+    """Blank rather than $0.00 when the model's price is unknown."""
+    return "—" if value is None else "${:.4f}".format(value)
 
 
 if __name__ == "__main__":
