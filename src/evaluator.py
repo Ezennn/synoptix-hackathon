@@ -14,6 +14,7 @@ computed offline and joined into the scoreboard. See AGENT_B_PLAN.md, decision 2
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import time
 from dataclasses import asdict, dataclass
@@ -26,10 +27,11 @@ RESULTS_DIR = Path("results")
 RUN_LOG = RESULTS_DIR / "run_log.jsonl"
 DB_PATH = RESULTS_DIR / "scores.sqlite"
 
-# Answer-model price per 1M tokens. Override per run; the figure on the chart
-# must match the model actually used.
-PRICE_IN_PER_M = 3.00
-PRICE_OUT_PER_M = 15.00
+# Answer-model price per 1M tokens. Defaults to Claude 3.5 Haiku; override per
+# run via REGWATCH_PRICE_IN_PER_M / REGWATCH_PRICE_OUT_PER_M so the cost figure
+# on the chart matches the model actually used.
+PRICE_IN_PER_M = float(os.environ.get("REGWATCH_PRICE_IN_PER_M", "0.80"))
+PRICE_OUT_PER_M = float(os.environ.get("REGWATCH_PRICE_OUT_PER_M", "4.00"))
 
 
 @dataclass
