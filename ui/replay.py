@@ -58,22 +58,32 @@ def has_stale(record: Dict[str, Any]) -> Optional[bool]:
     treating that as "no stale fact found" would score the least transparent
     backend as the cleanest one.
     """
-    stale = (record["probe"] or {}).get("superseded_answer")
+    stale_values = (record["probe"] or {}).get("superseded_values") or []
     context = record.get("retrieval_context")
-    if not stale or not context:
+    if not stale_values or not context:
+        # No superseded value means the probe is a control with nothing stale to
+        # find, which is not the same as a clean context. Both are unknowable.
         return None
-    return any(stale.lower() in chunk.lower() for chunk in context)
+    blob = " ".join(context).lower()
+    return any(value.lower() in blob for value in stale_values)
 
 
-def highlight(text: str, stale: Optional[str], current: Optional[str]) -> str:
-    """Superseded phrase in red, current phrase in green. The money shot."""
+def highlight(text: str, stale_values: Optional[List[str]],
+              current: Optional[str]) -> str:
+    """Superseded phrases in red, current phrase in green. The money shot.
+
+    A probe can carry several superseded values (a fact mutated more than
+    once), so every one of them is marked, not just the first.
+    """
     out = html.escape(text)
-    for phrase, cls in ((stale, "stale"), (current, "current")):
+    marks = [(value, "stale") for value in (stale_values or [])]
+    if current:
+        marks.append((current, "current"))
+    for phrase, cls in marks:
         if not phrase:
             continue
         escaped = html.escape(phrase)
-        lowered = out.lower()
-        idx = lowered.find(escaped.lower())
+        idx = out.lower().find(escaped.lower())
         if idx == -1:
             continue
         out = (out[:idx] + '<span class="{}">'.format(cls)

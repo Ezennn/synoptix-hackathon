@@ -17,6 +17,8 @@ import json
 import sqlite3
 import time
 from dataclasses import asdict, dataclass
+from dataclasses import field as dc_field
+from dataclasses import fields as dc_fields
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -34,18 +36,33 @@ PRICE_OUT_PER_M = 15.00
 
 @dataclass
 class Probe:
-    """One question from A's generate.py.
+    """One question from A's generate.py (data/probes.json).
 
-    Mirrors the fields B's evaluator needs. Confirm against the schema A
-    publishes in generate.py's docstring (sync point 2) before the full run.
+    Field names mirror that file EXACTLY, because asdict(probe) is handed
+    straight to A's score_probe(), which reads `expected_answer` and
+    `superseded_values` by key. Renaming either here does not raise — the
+    scorer just sees no superseded values, skips the stale check, and passes
+    every answer that asserts the current value. Keep these names in step with
+    generate.py (sync point 2).
     """
     probe_id: str
     question: str
-    fact_id: Optional[str] = None
-    expected_answer: Optional[str] = None
-    superseded_answer: Optional[str] = None
-    asked_at: Optional[str] = None
     phase: Optional[int] = None
+    tier: Optional[str] = None
+    fact_ids: List[str] = dc_field(default_factory=list)
+    expected_answer: Optional[str] = None
+    superseded_values: List[str] = dc_field(default_factory=list)
+    ask_after_session: Optional[int] = None
+    ask_date: Optional[str] = None
+    multi_hop: bool = False
+    notes: Optional[str] = None
+
+    @classmethod
+    def from_record(cls, record: Dict[str, Any]) -> "Probe":
+        """Build from one entry of data/probes.json, ignoring unknown keys so
+        A can add fields without breaking the service."""
+        known = {f.name for f in dc_fields(cls)}
+        return cls(**{k: v for k, v in record.items() if k in known})
 
 
 def _consistency(turn: TurnResult, probe: Probe) -> Dict[str, Any]:
@@ -55,12 +72,13 @@ def _consistency(turn: TurnResult, probe: Probe) -> Dict[str, Any]:
     so a missing dependency can never be mistaken for a passing backend.
     """
     try:
-        from .metrics.dag_consistency import score as dag_score  # type: ignore
+        from .metrics.dag_consistency import score_probe  # type: ignore
     except Exception:
         return {"value": None, "reason": "dag_consistency not available (owner A)"}
     try:
-        value, reason = dag_score(answer=turn.answer, probe=asdict(probe))
-        return {"value": value, "reason": reason}
+        # A's signature is score_probe(probe_dict, answer) -> DagScore.
+        result = score_probe(asdict(probe), turn.answer)
+        return {"value": result.score, "passed": result.passed, "reason": result.reason}
     except Exception as exc:  # a scorer bug must not take down /ask
         return {"value": None, "reason": "scorer error: {}".format(exc)}
 

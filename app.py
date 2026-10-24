@@ -128,7 +128,7 @@ def _column(record, probe) -> None:
     context = "\n".join(record["retrieval_context"] or [])
     st.markdown(
         '<div class="card"><h4>What the model was told</h4><div class="ctx">{}</div></div>'
-        .format(highlight(context, probe.get("superseded_answer"),
+        .format(highlight(context, probe.get("superseded_values"),
                           probe.get("expected_answer"))),
         unsafe_allow_html=True)
 
@@ -193,10 +193,10 @@ def _rerun_live(probe) -> None:
     try:
         response = httpx.post("{}/ask".format(ORCHESTRATOR), timeout=60, json={
             "session_id": "client_acme", "question": probe["question"],
-            "probe_id": probe["probe_id"], "fact_id": probe.get("fact_id"),
+            "probe_id": probe["probe_id"], "fact_ids": probe.get("fact_ids") or [],
             "expected_answer": probe.get("expected_answer"),
-            "superseded_answer": probe.get("superseded_answer"),
-            "phase": probe.get("phase"),
+            "superseded_values": probe.get("superseded_values") or [],
+            "phase": probe.get("phase"), "tier": probe.get("tier"),
         })
         response.raise_for_status()
         st.success("Re-ran live; the log now has a fresh row.")
