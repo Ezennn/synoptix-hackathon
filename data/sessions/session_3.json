@@ -1,0 +1,35 @@
+{
+  "session": 3,
+  "date": "2026-04-20",
+  "statements": [
+    {
+      "fact_id": "subsidiary_b_divested",
+      "text": "Note: client acme subB has been divested as of this session.",
+      "tier": "transitive"
+    },
+    {
+      "fact_id": "crypto_exposure",
+      "text": "(derived) crypto exposure at group level: no.",
+      "tier": "transitive"
+    },
+    {
+      "fact_id": "suitability_policy_v2",
+      "text": "Regulatory update — suitability policy is now v2 (crypto prohibited for clients tiered conservative).",
+      "tier": "baseline"
+    }
+  ],
+  "distractors": [
+    {
+      "about_fact_id": "pension_risk_v1",
+      "text": "MEETING NOTE (archival): In an earlier session the client acme pension position was discussed at length. At that time the recorded value was 'aggressive', and the advisory team built the model portfolio around it. This was reaffirmed in several earlier calls with the relationship team. Attendees reviewed exposure, liquidity and reporting implications of 'aggressive' in detail across roughly forty minutes of discussion."
+    },
+    {
+      "about_fact_id": "suitability_policy_v1",
+      "text": "MEETING NOTE (archival): In an earlier session the policy mifid suitability position was discussed at length. At that time the recorded value was 'v1 (crypto allowed for professional clients up to 10% AUM)', and the advisory team built the model portfolio around it. This was reaffirmed in several earlier calls with the relationship team. Attendees reviewed exposure, liquidity and reporting implications of 'v1 (crypto allowed for professional clients up to 10% AUM)' in detail across roughly forty minutes of discussion."
+    },
+    {
+      "about_fact_id": "crypto_appetite_v1",
+      "text": "MEETING NOTE (archival): In an earlier session the client acme position was discussed at length. At that time the recorded value was 'aggressive', and the advisory team built the model portfolio around it. This was reaffirmed in several earlier calls with the relationship team. Attendees reviewed exposure, liquidity and reporting implications of 'aggressive' in detail across roughly forty minutes of discussion."
+    }
+  ]
+}
