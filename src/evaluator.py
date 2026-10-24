@@ -14,6 +14,7 @@ computed offline and joined into the scoreboard. See AGENT_B_PLAN.md, decision 2
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import time
 from dataclasses import asdict, dataclass
@@ -103,6 +104,49 @@ def score_live(turn: TurnResult, probe: Probe) -> Dict[str, Any]:
     }
 
 
+def provenance() -> Dict[str, Any]:
+    """Where this row's answer came from.
+
+    Read from the environment, mirroring the gateway's own defaults in
+    src/llm.py, so a row always records the mode and model that produced it. A
+    stub row and a live row are otherwise indistinguishable once written.
+    """
+    return {
+        "llm_mode": os.environ.get("REGWATCH_LLM_MODE", "stub").lower(),
+        "model": os.environ.get("REGWATCH_MODEL", "gpt-4o-mini"),
+        "cache_dir": os.environ.get("REGWATCH_CACHE_DIR"),
+    }
+
+
+def check_log_mode(mode: str, path: Path = RUN_LOG) -> None:
+    """Refuse to append rows of one mode to a log holding another.
+
+    Mixing stub and live results is unrecoverable after the fact — the rows look
+    the same and the numbers quietly average together — so this is a hard stop,
+    not a warning. Rows written before provenance existed read as "unknown" and
+    also block, since they cannot be vouched for either.
+    """
+    if not path.exists():
+        return
+    seen = set()
+    with path.open() as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                seen.add(json.loads(line).get("llm_mode") or "unknown")
+            except json.JSONDecodeError:
+                continue
+    conflicting = sorted(m for m in seen if m != mode)
+    if conflicting:
+        raise RuntimeError(
+            "{} already holds {} rows; refusing to append {!r} rows. "
+            "Move it aside (e.g. results/run_log.{}.jsonl) and run again.".format(
+                path, "/".join(conflicting), mode, conflicting[0])
+        )
+
+
 def log_turn(session_id: str, backend: str, probe: Probe, turn: Optional[TurnResult],
              scores: Optional[Dict[str, Any]], status: str, error: Optional[str] = None) -> None:
     """One line per probe per backend. The UI replays this file; the offline
@@ -115,6 +159,7 @@ def log_turn(session_id: str, backend: str, probe: Probe, turn: Optional[TurnRes
         "backend": backend,
         "status": status,
         "error": error,
+        **provenance(),
         "probe": asdict(probe),
         "answer": turn.answer if turn else None,
         "retrieval_context": turn.retrieval_context if turn else None,
