@@ -22,7 +22,7 @@ in two opposite directions:
 
 From outside, both look the same: a fluent, confident assistant. Model evaluation does
 not catch either one, because it scores the *answer*, not the context the answer came
-from. That context layer is what TraceWise tests.
+from. That context layer is what TraceWise AI tests.
 
 This is not hypothetical. In *Moffatt v. Air Canada* (2024 BCCRT 149) the airline argued
 its chatbot was a "separate legal entity" responsible for its own answers. The tribunal
