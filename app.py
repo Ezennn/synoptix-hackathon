@@ -60,8 +60,110 @@ CSS = """
   .verdict { font-size:.78rem; font-weight:600; margin-top:.35rem; }
   .kv { font-size:.78rem; color:#8b8d98; }
   .big { font-size:1.6rem; font-weight:700; line-height:1.1; }
+  .tag { display:inline-block; font-size:.66rem; font-weight:600; padding:.1rem .5rem;
+         border-radius:99px; margin:0 .25rem .25rem 0; border:1px solid currentColor; }
+  .scn h4 { margin:0 0 .2rem 0; font-size:.9rem; }
+  .scn .answer { margin-top:.15rem; }
+  .step { font-family:ui-monospace,Menlo,monospace; font-size:.74rem; color:#8b8d98; }
 </style>
 """
+
+# --------------------------------------------------------------------------
+# What the benchmark tests, stated once so the UI can show it plainly.
+# --------------------------------------------------------------------------
+
+# The 4 client storylines (scenarios). Each is one entity's fact-timeline that
+# mutates across the four sessions; a memory system is tested on whether it
+# tracks that timeline correctly.
+SCENARIOS = [
+    {
+        "key": "crypto_appetite",
+        "title": "1 · Crypto risk appetite",
+        "entity": "Acme Capital Partners LLP",
+        "story": "Risk appetite for crypto flips aggressive → conservative in "
+                 "session 2 and stays there.",
+        "timeline": "S1 aggressive  →  S2 conservative  →  (holds)",
+        "tests": "direct",
+        "catches": "A forgetful backend still answers “aggressive” after the flip.",
+    },
+    {
+        "key": "account_risk",
+        "title": "2 · Scoped account risk tiers",
+        "entity": "Acme pension vs Acme prop book",
+        "story": "Only the PENSION sub-account turns conservative in session 2. "
+                 "The prop book stays aggressive — a scoped change.",
+        "timeline": "pension: S1 aggressive → S2 conservative   |   "
+                    "propbook: aggressive (unchanged)",
+        "tests": "partial",
+        "catches": "A backend that overwrites globally wrongly flips the prop "
+                   "book too.",
+    },
+    {
+        "key": "subsidiary_divest",
+        "title": "3 · Subsidiary divestment → crypto exposure",
+        "entity": "Acme subsidiary B",
+        "story": "Subsidiary B holds the crypto position (S1), then is divested "
+                 "(S3). Nothing SAYS “no crypto exposure” — it must be inferred.",
+        "timeline": "S1 subB holds crypto  →  S3 subB divested  ⟹  no exposure",
+        "tests": "transitive",
+        "catches": "A backend with no inference rule still answers “yes, crypto "
+                   "exposure”. This is the hard, showcase scenario.",
+    },
+    {
+        "key": "domicile",
+        "title": "4 · Tax domicile reinstatement",
+        "entity": "Acme Capital Partners LLP",
+        "story": "Tax domicile moves UK → Luxembourg (S2), then back to UK (S4). "
+                 "At the S3 ask-time the answer is Luxembourg.",
+        "timeline": "S1 UK  →  S2 Luxembourg  →  S4 UK  (A/B/A)",
+        "tests": "reinstatement",
+        "catches": "A “latest-value-only” backend cannot answer the mid-timeline "
+                   "ask (Luxembourg) correctly — it only knows the final value.",
+    },
+]
+
+# The 5 mutation types (test parameters). These ARE the TIERS column in every
+# chart; defined here with a plain-language gloss so the orientation tab and the
+# heatmap use the same five words.
+PARAMETERS = [
+    {
+        "tier": "baseline",
+        "title": "Baseline (control)",
+        "what": "A fact that NEVER changes (legal name, base currency).",
+        "passes": "A system failing these has a problem unrelated to updates.",
+    },
+    {
+        "tier": "direct",
+        "title": "Direct overwrite",
+        "what": "A value is replaced once; the question wants the current one.",
+        "passes": "Tests plain recency — does the latest value win.",
+    },
+    {
+        "tier": "partial",
+        "title": "Partial / scoped overwrite",
+        "what": "One sub-entity changes; a sibling must NOT be touched.",
+        "passes": "Tests that an update is scoped, not applied globally.",
+    },
+    {
+        "tier": "transitive",
+        "title": "Transitive invalidation",
+        "what": "The answer is never stated — it follows by inference from two "
+                "facts (held-via + divested).",
+        "passes": "Tests real inference. The ≤7% “nearly unsolved” tier.",
+    },
+    {
+        "tier": "reinstatement",
+        "title": "Reinstatement (A/B/A)",
+        "what": "A value flips away and later flips back.",
+        "passes": "Tests timeline tracking, not just the final value.",
+    },
+]
+
+# Which colour a tier gets in the orientation tags (reused from the palette).
+_TIER_COLOUR = {
+    "baseline": MUTED, "direct": GOOD, "partial": "#2563EB",
+    "transitive": WARN, "reinstatement": "#9333EA",
+}
 
 
 # --------------------------------------------------------------------------
@@ -146,20 +248,25 @@ def main() -> None:
 
     _header(meta)
 
-    tabs = st.tabs(["Evaluation", "Cost & efficiency", "Failure explorer",
-                    "Recommendation", "Side-by-side", "Context rot"])
+    tabs = st.tabs(["Overview", "Evaluation", "Cost & efficiency",
+                    "Failure explorer", "Recommendation", "Side-by-side",
+                    "Context rot", "Data & logs"])
     with tabs[0]:
-        _evaluation(records, board)
+        _overview(records, meta)
     with tabs[1]:
-        _cost_efficiency(records, board, meta)
+        _evaluation(records, board)
     with tabs[2]:
-        _failure_explorer(records)
+        _cost_efficiency(records, board, meta)
     with tabs[3]:
-        _recommendation(records, board)
+        _failure_explorer(records)
     with tabs[4]:
-        _side_by_side(records, probes(records), shown, live)
+        _recommendation(records, board)
     with tabs[5]:
+        _side_by_side(records, probes(records), shown, live)
+    with tabs[6]:
         _rot(records, shown)
+    with tabs[7]:
+        _data_and_logs(records)
 
 
 def _header(meta) -> None:
@@ -177,6 +284,178 @@ def _header(meta) -> None:
                "model and the same system prompt, so the only variable is the "
                "memory layer.".format(meta.get("model") or "—"))
     st.divider()
+
+
+# --------------------------------------------------------------------------
+# 0. overview — what the benchmark tests (4 scenarios × 5 parameters)
+# --------------------------------------------------------------------------
+
+def _overview(records, meta) -> None:
+    st.subheader("What this benchmark tests")
+    st.caption("Four client storylines (scenarios) are each probed along five "
+               "mutation types (test parameters). Every memory system under test "
+               "answers the same questions with the same model — the only "
+               "variable is how it remembers.")
+
+    answered = sorted({r["backend"] for r in records if r["status"] == "ok"})
+    cols = st.columns(3)
+    cols[0].metric("Scenarios", len(SCENARIOS))
+    cols[1].metric("Test parameters", len(PARAMETERS))
+    cols[2].metric("Memory systems in this run", len(answered) or meta.get("backends", 0))
+
+    st.divider()
+    st.markdown("### The 4 scenarios")
+    st.caption("Each is one entity's fact-timeline across sessions S1–S4.")
+    grid = st.columns(2)
+    for i, scn in enumerate(SCENARIOS):
+        colour = _TIER_COLOUR.get(scn["tests"], MUTED)
+        with grid[i % 2]:
+            st.markdown(
+                '<div class="card scn" style="border-color:{c}">'
+                '<h4>{title}</h4>'
+                '<span class="tag" style="color:{c}">parameter: {tier}</span>'
+                '<div class="answer"><b>Entity:</b> {entity}</div>'
+                '<div class="answer">{story}</div>'
+                '<div class="step">{timeline}</div>'
+                '<div class="answer" style="margin-top:.4rem;color:{w}">'
+                '<b>Catches:</b> {catches}</div>'
+                '</div>'.format(c=colour, w=WARN, title=scn["title"],
+                                tier=scn["tests"], entity=scn["entity"],
+                                story=scn["story"], timeline=scn["timeline"],
+                                catches=scn["catches"]),
+                unsafe_allow_html=True)
+
+    st.divider()
+    st.markdown("### The 5 test parameters")
+    st.caption("These are the five difficulty tiers scored in every chart on the "
+               "Evaluation tab — rising from a never-changing control to inference.")
+    for prm in PARAMETERS:
+        colour = _TIER_COLOUR.get(prm["tier"], MUTED)
+        st.markdown(
+            '<div class="card" style="border-left:4px solid {c}">'
+            '<span class="tag" style="color:{c}">{tier}</span>'
+            '<b>{title}</b>'
+            '<div class="answer">{what}</div>'
+            '<div class="meta">{passes}</div>'
+            '</div>'.format(c=colour, tier=prm["tier"], title=prm["title"],
+                            what=prm["what"], passes=prm["passes"]),
+            unsafe_allow_html=True)
+
+    st.divider()
+    st.markdown("### Coverage — scenarios × parameters")
+    st.caption("How many probes in this run exercise each (scenario-parameter) "
+               "cell. Baseline and the two-timeline compliance probes span "
+               "scenarios, so they are counted under their parameter.")
+    _coverage_matrix(records)
+
+
+def _coverage_matrix(records) -> None:
+    """Probe count per (scenario, parameter), from the loaded run."""
+    # Map each probe to a scenario by the tier it exercises (1:1 with the four
+    # non-baseline storylines); baseline probes form their own row.
+    tier_to_scenario = {s["tests"]: s["title"] for s in SCENARIOS}
+    seen = {}
+    rows = {}
+    for rec in records:
+        probe = rec["probe"]
+        pid = probe["probe_id"]
+        if pid in seen:
+            continue
+        seen[pid] = True
+        tier = probe.get("tier") or "unknown"
+        scenario = tier_to_scenario.get(tier, "— (control / cross-scenario)")
+        rows.setdefault(scenario, {t: 0 for t in TIERS})
+        if tier in rows[scenario]:
+            rows[scenario][tier] += 1
+    if not rows:
+        st.info("No probes in this run.")
+        return
+    frame = pd.DataFrame(
+        [{"scenario": scn, **{t: counts[t] for t in TIERS}}
+         for scn, counts in rows.items()])
+    st.dataframe(frame, width="stretch", hide_index=True)
+
+
+# --------------------------------------------------------------------------
+# 7. data & logs — the full questions asked and the data fed to the models
+# --------------------------------------------------------------------------
+
+def _data_and_logs(records) -> None:
+    st.subheader("Everything fed in, and every question asked")
+    st.caption("The benchmark's INPUTS, in full — so nothing about what the "
+               "models saw is hidden. Exported copies live in `results/`.")
+
+    all_probes = probes(records)
+    distinct = len({(p["question"], p.get("ask_after_session"),
+                     tuple(p.get("fact_ids") or [])) for p in all_probes})
+    c = st.columns(3)
+    c[0].metric("Probe rows", len(all_probes))
+    c[1].metric("Distinct tests", distinct)
+    c[2].metric("Distinct question texts",
+                len({p["question"] for p in all_probes}))
+    st.caption("“Probe rows” is the raw count; “distinct tests” collapses rows "
+               "that share a question, ask-step and target fact. The same "
+               "wording asked after a LATER session is a different test, because "
+               "the correct answer changed when the fact mutated — that is why "
+               "the Failure Explorer shows repeated-looking questions.")
+
+    st.divider()
+    st.markdown("### Full question log")
+    st.caption("Every probe with the session it was asked after and the answer "
+               "that was correct at that moment. Sort by question to see one "
+               "wording tracked across the timeline.")
+    qrows = []
+    for p in sorted(all_probes, key=lambda x: x["probe_id"]):
+        qrows.append({
+            "probe_id": p["probe_id"],
+            "phase": p.get("phase"),
+            "tier (parameter)": p.get("tier"),
+            "after session": p.get("ask_after_session"),
+            "ask date": p.get("ask_date"),
+            "multi-hop": "yes" if p.get("multi_hop") else "",
+            "question": p.get("question"),
+            "expected now": p.get("expected_answer"),
+            "superseded": " | ".join(p.get("superseded_values") or []),
+        })
+    st.dataframe(qrows, width="stretch", hide_index=True, height=360)
+    csv_path = Path("results/question_log.csv")
+    if csv_path.exists():
+        st.download_button("Download question_log.csv", csv_path.read_bytes(),
+                           file_name="question_log.csv", mime="text/csv")
+
+    st.divider()
+    st.markdown("### Data feed — what each backend ingested")
+    st.caption("The four session transcripts in order: session 1 is loaded, "
+               "sessions 2–4 are applied as updates. Distractors are irrelevant "
+               "notes fed in alongside to make retrieval harder.")
+    feed_path = Path("results/data_feed.md")
+    if feed_path.exists():
+        with st.expander("Show the full data feed (all four sessions)", expanded=False):
+            st.markdown(feed_path.read_text(encoding="utf-8"))
+        st.download_button("Download data_feed.md", feed_path.read_bytes(),
+                           file_name="data_feed.md", mime="text/markdown")
+    else:
+        st.info("Run `python scripts/export_inputs.py` to generate the data feed.")
+
+    st.divider()
+    st.markdown("### Per-turn context dump")
+    st.caption("For one question and one memory system, the EXACT text injected "
+               "into the model this turn — the same evidence the Failure "
+               "Explorer shows, browsable for any probe (not only failures).")
+    labels = {"{}  —  {}".format(p["probe_id"], p["question"][:70]): p
+              for p in all_probes}
+    chosen = labels[st.selectbox("Question", list(labels))]
+    turn_rows = columns_for(records, chosen["probe_id"])
+    for r in turn_rows:
+        ctx = r.get("retrieval_context") or []
+        chars = sum(len(x) for x in ctx)
+        with st.expander("{} — {} items, {} chars  ({})".format(
+                r["backend"], len(ctx), chars, r["status"])):
+            if ctx:
+                st.code("\n".join(ctx), language="text")
+            else:
+                st.write("_(empty context — backend exposed nothing this turn)_")
+            st.caption("answer: {}".format(r.get("answer") or "—"))
 
 
 # --------------------------------------------------------------------------
