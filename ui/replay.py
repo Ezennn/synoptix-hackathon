@@ -125,6 +125,18 @@ def scoreboard(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         correct = sum(1 for v in consistencies if v >= 1.0)
         total_cost = sum(costs) if costs else None
 
+        # A cached turn returns from disk: its latency is a file read, and it
+        # cost nothing. Keeping them in the averages reports a run as faster
+        # and cheaper than the same work would be in production, so the two are
+        # separated rather than blended.
+        fresh = [r for r in ok if r.get("cached") is False]
+        fresh_latencies = [(r["scores"] or {}).get("latency_ms") for r in fresh]
+        fresh_latencies = [v for v in fresh_latencies if v is not None]
+        spent = [(r["scores"] or {}).get("cost_usd") for r in fresh]
+        spent = [v for v in spent if v is not None]
+        totals_tokens = [(s.get("tokens_in") or 0) + (s.get("tokens_out") or 0)
+                         for s in scored]
+
         rows.append({
             "backend": name,
             "probes": len(recs),
@@ -135,9 +147,20 @@ def scoreboard(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                                 if consistencies else None,
             "avg_tokens_in": _mean([s["tokens_in"] for s in scored]),
             "avg_tokens_out": _mean([s["tokens_out"] for s in scored]),
+            "avg_total_tokens": _mean(totals_tokens),
             "avg_latency_ms": _mean(latencies),
+            "median_latency_ms": _percentile(latencies, 50),
             "p95_latency_ms": _percentile(latencies, 95),
+            # Fresh-only: what the same work costs and takes with no cache.
+            "fresh_calls": len(fresh),
+            "cached_calls": sum(1 for r in ok if r.get("cached") is True),
+            "fresh_avg_latency_ms": _mean(fresh_latencies),
+            "fresh_p95_latency_ms": _percentile(fresh_latencies, 95),
+            # Modelled cost prices every answered probe as if it were a fresh
+            # call — the production economics. Spent is what this run actually
+            # paid, which is lower whenever the cache served a row.
             "total_cost_usd": total_cost,
+            "spent_usd": sum(spent) if spent else None,
             # Both cost measures are None when the model's rate is unknown,
             # rather than silently reported as zero.
             "cost_per_1k_usd": (total_cost / len(costs) * 1000) if costs else None,
@@ -278,4 +301,39 @@ def run_meta(records: List[Dict[str, Any]]) -> Dict[str, Any]:
         "probes": len({r["probe"]["probe_id"] for r in records}),
         "backends": len({r["backend"] for r in records}),
         "answers": sum(1 for r in records if r["status"] == "ok"),
+    }
+
+
+def efficiency_pick(board: List[Dict[str, Any]],
+                    min_accuracy: float = 0.80) -> Dict[str, Any]:
+    """The cheapest backend that still meets a minimum accuracy.
+
+    Cost ranks on tokens per query rather than dollars, so the comparison works
+    even when the model has no confirmed rate — an unpriced model should not
+    mean no recommendation, and dollars are a linear function of tokens anyway.
+
+    Returns the chosen backend plus every candidate's verdict, so the answer is
+    never just a name: a backend that failed the bar is shown failing it.
+    """
+    candidates = []
+    for row in board:
+        if not row.get("answered") or row.get("consistency_rate") is None:
+            continue
+        candidates.append({
+            "backend": row["backend"],
+            "accuracy": row["consistency_rate"],
+            "tokens": row.get("avg_tokens_in") or 0,
+            "cost_per_1k_usd": row.get("cost_per_1k_usd"),
+            "meets": row["consistency_rate"] >= min_accuracy,
+        })
+    passing = [c for c in candidates if c["meets"]]
+    chosen = min(passing, key=lambda c: c["tokens"]) if passing else None
+    return {
+        "min_accuracy": min_accuracy,
+        "chosen": chosen,
+        "candidates": sorted(candidates, key=lambda c: -c["accuracy"]),
+        "reason": ("cheapest of {} meeting {:.0%}".format(len(passing), min_accuracy)
+                   if chosen else
+                   "no configuration reached {:.0%} — none is shippable at this "
+                   "bar".format(min_accuracy)),
     }

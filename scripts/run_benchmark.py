@@ -23,6 +23,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BACKENDS = ["sanity", "litellm_trim", "langgraph_state"]
@@ -85,6 +86,7 @@ def main(argv=None) -> int:
     from src.evaluator import (  # noqa: E402
         RUN_LOG, Probe, check_log_mode, log_turn, provenance, score_live,
     )
+    from src.llm import get_gateway  # noqa: E402
     from src.registry import get_spec  # noqa: E402
 
     probes = json.loads((ROOT / "data" / "probes.json").read_text())["probes"]
@@ -119,9 +121,21 @@ def main(argv=None) -> int:
         print("\nrefusing to run: {}".format(exc), file=sys.stderr)
         return 2
 
+    lock = RUN_LOG.parent / ".run.lock"
+    holder = _claim_lock(lock)
+    if holder:
+        print("\nrefusing to run: another benchmark (pid {}) is writing to {}. "
+              "Two runners appending to one log interleave their rows and the "
+              "result cannot be untangled afterwards.".format(holder, RUN_LOG),
+              file=sys.stderr)
+        return 3
+
     started = time.time()
     totals = {}
-    for name in args.backends:
+    ingestion = {}
+    gateway = get_gateway()
+    try:
+      for name in args.backends:
         spec = get_spec(name)
         if not spec.available():
             print("  {:16} SKIPPED — not available".format(name))
@@ -129,6 +143,11 @@ def main(argv=None) -> int:
         backend = spec.get()
         backend.reset(SESSION)
         ok = errors = 0
+        # Ingestion cost is whatever the gateway is asked for during
+        # load/update. For the in-process backends this is a measured zero —
+        # they assemble context in Python — but a hosted memory service would
+        # spend tokens here, and that must not be mixed into answer cost.
+        ingest_before = gateway.usage()["calls"]
 
         for index, session in enumerate(sessions, start=1):
             texts = [s["text"] for s in session.get("statements", [])]
@@ -145,7 +164,11 @@ def main(argv=None) -> int:
                 # One probe failing is a result, not the end of the run.
                 try:
                     turn = backend.ask(SESSION, probe.question)
-                    log_turn(SESSION, name, probe, turn, score_live(turn, probe), "ok")
+                    # Read immediately: a cached turn returns in ~0 ms, so a
+                    # row that does not say which it was makes the latency
+                    # column meaningless on a warm cache.
+                    log_turn(SESSION, name, probe, turn, score_live(turn, probe),
+                             "ok", cached=gateway.last_cached)
                     ok += 1
                 except Exception as exc:
                     log_turn(SESSION, name, probe, None, None, "error",
@@ -155,13 +178,54 @@ def main(argv=None) -> int:
                 if done % 10 == 0 or done == planned:
                     print("  {:16} {}/{}".format(name, done, planned), flush=True)
 
+        ingest_total = gateway.usage()["calls"] - ingest_before - ok - errors
         totals[name] = (ok, errors)
-        print("  {:16} done — {} ok, {} errors".format(name, ok, errors))
+        ingestion[name] = max(0, ingest_total)
+        print("  {:16} done — {} ok, {} errors, {} ingestion calls".format(
+            name, ok, errors, ingest_total))
+    finally:
+        lock.unlink(missing_ok=True)
+
+    usage = gateway.usage()
+    summary = {
+        "finished": time.time(), "seconds": round(time.time() - started, 1),
+        "provenance": prov, "gateway": usage,
+        "backends": {n: {"ok": ok, "errors": e, "ingestion_calls": ingestion.get(n)}
+                     for n, (ok, e) in totals.items()},
+    }
+    (RUN_LOG.parent / "run_summary.json").write_text(json.dumps(summary, indent=2))
 
     print("\nwrote {} in {:.0f}s".format(RUN_LOG, time.time() - started))
     for name, (ok, errors) in totals.items():
         print("  {:16} ok={:3} errors={}".format(name, ok, errors))
+    print("  gateway: {calls} calls, {cache_hits} cached, {cache_misses} fresh"
+          .format(**usage))
     return 1 if any(e for _, e in totals.values()) else 0
+
+
+def _claim_lock(path) -> Optional[int]:
+    """Take the run lock, or return the pid already holding it.
+
+    Two runners appending to one JSONL file interleave their rows, and nothing
+    afterwards can say which process wrote which — the rows look identical.
+    A stale lock from a killed run is reclaimed.
+    """
+    path.parent.mkdir(exist_ok=True)
+    try:
+        existing = int(path.read_text().strip())
+    except Exception:
+        existing = None
+    if existing is not None and existing != os.getpid():
+        try:
+            os.kill(existing, 0)          # signal 0 only tests for existence
+            return existing
+        except ProcessLookupError:
+            pass                          # holder is gone; the lock is stale
+        except PermissionError:
+            # The process exists, we just may not signal it. Alive.
+            return existing
+    path.write_text(str(os.getpid()))
+    return None
 
 
 if __name__ == "__main__":

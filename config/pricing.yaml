@@ -1,0 +1,36 @@
+# Token prices per 1,000,000 tokens, in USD.
+#
+# Every cost figure RegWatch reports traces back to an entry here, and the entry
+# that produced it is recorded in the run log alongside the number. A model with
+# no entry reports cost as UNKNOWN, never zero — a wrong cost on a slide is
+# worse than a missing one.
+#
+# `match` is a substring tested against the model string, so "claude-haiku-4-5"
+# matches "anthropic/claude-haiku-4-5". List more specific keys first.
+#
+# Override for a single run without editing this file:
+#   REGWATCH_PRICE_IN_PER_M=1.0 REGWATCH_PRICE_OUT_PER_M=5.0 python scripts/run_benchmark.py ...
+#
+# Check the provider's own pricing page before quoting any of these: rates
+# change, and the figures below were taken on the dates shown.
+
+models:
+  - match: gpt-4o-mini
+    input_per_m: 0.15
+    output_per_m: 0.60
+    source: https://openai.com/api/pricing/
+    as_of: 2026-10-24
+
+  - match: claude-haiku-4-5
+    input_per_m: 1.00
+    output_per_m: 5.00
+    source: https://platform.claude.com/docs/en/about-claude/pricing
+    as_of: 2026-10-24
+    note: >
+      Secondary sources agree on this rate; confirm on the official page before
+      publishing a cost figure.
+
+# Deliberately absent: claude-haiku-5-5 and claude-opus-5-5. We have not
+# confirmed their published rates, so runs on those models report cost as
+# unknown rather than guessing. Add an entry here, with its source, once the
+# rate is confirmed.

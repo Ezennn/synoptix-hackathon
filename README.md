@@ -101,7 +101,14 @@ For real answers, put a key in `.env` (`ANTHROPIC_API_KEY=...`, gitignored) and:
 
 300 calls, about three minutes, roughly $0.40. Responses are cached on disk, so a re-run
 is free. Use a fresh `--cache-dir` when you care about latency: a cached turn returns in
-~0 ms.
+~0 ms, and each answer records whether it was served from cache.
+
+Only one benchmark may write the run log at a time — a second one refuses rather than
+interleaving rows into a log nothing can untangle afterwards.
+
+**Costs** come from `config/pricing.yaml`, where each model's rate carries its source and
+the date it was taken. A model with no entry reports cost as unknown, never zero.
+Override for one run with `REGWATCH_PRICE_IN_PER_M` / `REGWATCH_PRICE_OUT_PER_M`.
 
 Add `--no-recency-hint` for the B arm of the prompt experiment.
 

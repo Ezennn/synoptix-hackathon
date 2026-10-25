@@ -20,8 +20,9 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ui.replay import (  # noqa: E402
-    CAUSES, DEFAULT_LOG, TIERS, backend_order, by_tier, columns_for, failures,
-    has_stale, highlight, load_log, probes, run_meta, scoreboard, stale_by_phase,
+    CAUSES, DEFAULT_LOG, TIERS, backend_order, by_tier, columns_for,
+    efficiency_pick, failures, has_stale, highlight, load_log, probes, run_meta,
+    scoreboard, stale_by_phase,
 )
 
 ORCHESTRATOR = "http://127.0.0.1:8077"
@@ -145,17 +146,19 @@ def main() -> None:
 
     _header(meta)
 
-    tabs = st.tabs(["Evaluation", "Failure explorer", "Recommendation",
-                    "Side-by-side", "Context rot"])
+    tabs = st.tabs(["Evaluation", "Cost & efficiency", "Failure explorer",
+                    "Recommendation", "Side-by-side", "Context rot"])
     with tabs[0]:
         _evaluation(records, board)
     with tabs[1]:
-        _failure_explorer(records)
+        _cost_efficiency(records, board, meta)
     with tabs[2]:
-        _recommendation(records, board)
+        _failure_explorer(records)
     with tabs[3]:
-        _side_by_side(records, probes(records), shown, live)
+        _recommendation(records, board)
     with tabs[4]:
+        _side_by_side(records, probes(records), shown, live)
+    with tabs[5]:
         _rot(records, shown)
 
 
@@ -247,6 +250,88 @@ def _evaluation(records, board) -> None:
 
     with st.expander("Full scoreboard"):
         _scoreboard_table(board)
+
+
+def _cost_efficiency(records, board, meta) -> None:
+    scored = [r for r in board if r["answered"]]
+    if not scored:
+        st.info("Nothing scored in this run.")
+        return
+
+    pricing = (records[0] or {}).get("pricing") if records else None
+    if pricing:
+        st.caption("Priced at ${:.2f} in / ${:.2f} out per million tokens — "
+                   "source: {} (as of {}).".format(
+                       pricing.get("input_per_m"), pricing.get("output_per_m"),
+                       pricing.get("source"), pricing.get("as_of")))
+    else:
+        st.warning("No confirmed token rate for **{}**, so every dollar figure "
+                   "reads unknown rather than zero. Add it to `config/pricing.yaml`, "
+                   "or set REGWATCH_PRICE_IN_PER_M / _OUT_PER_M."
+                   .format(meta.get("model") or "this model"))
+
+    unknown_cache = sum(r["fresh_calls"] + r["cached_calls"] for r in scored) == 0
+    if unknown_cache:
+        st.info("This run predates cache tracking, so latency below blends real "
+                "calls with cache reads — note the median against the p95. "
+                "Runs from now on record it per answer.")
+
+    st.subheader("Cost and speed per memory system")
+    rows = []
+    for row in board:
+        if not row["answered"]:
+            continue
+        rows.append({
+            "backend": row["backend"],
+            "correct": "{}/{}".format(row["correct"], row["answered"]),
+            "tokens in": _num(row["avg_tokens_in"]),
+            "tokens out": _num(row["avg_tokens_out"]),
+            "tokens total": _num(row["avg_total_tokens"]),
+            "latency mean": _num(row["avg_latency_ms"]),
+            "median": _num(row["median_latency_ms"]),
+            "p95": _num(row["p95_latency_ms"]),
+            "fresh calls": "{}".format(row["fresh_calls"] or "—"),
+            "$ / 1k questions": _usd(row["cost_per_1k_usd"]),
+            "$ / correct answer": _usd(row["cost_per_correct_usd"]),
+        })
+    st.dataframe(rows, width="stretch", hide_index=True)
+    st.caption("Answer generation only. The in-process backends make no model "
+               "calls while ingesting, so their ingestion cost is a measured "
+               "zero; a hosted memory service would report it separately.")
+
+    st.subheader("Is the cheap one good enough?")
+    # Whole percents: a 0-1 float with a "%.0f%%" format renders 0.80 as "1%".
+    threshold = st.slider("Minimum acceptable accuracy", 0, 100, 80, 5,
+                          format="%d%%") / 100.0
+    pick = efficiency_pick(board, threshold)
+    if pick["chosen"]:
+        st.success("**{}** — {} ({:.0%} correct, {:.0f} tokens per query)".format(
+            pick["chosen"]["backend"], pick["reason"],
+            pick["chosen"]["accuracy"], pick["chosen"]["tokens"]))
+    else:
+        st.error(pick["reason"])
+    st.dataframe([{
+        "backend": c["backend"], "accuracy": "{:.0%}".format(c["accuracy"]),
+        "tokens / query": _num(c["tokens"]),
+        "meets bar": "yes" if c["meets"] else "no",
+    } for c in pick["candidates"]], width="stretch", hide_index=True)
+
+    st.subheader("Accuracy against cost")
+    priced = all(r["cost_per_1k_usd"] is not None for r in scored)
+    frame = pd.DataFrame([{
+        "backend": r["backend"],
+        "cost": r["cost_per_1k_usd"] if priced else (r["avg_tokens_in"] or 0),
+        "accuracy": (r["consistency_rate"] or 0) * 100,
+    } for r in scored])
+    axis = "$ per 1,000 questions" if priced else "input tokens per query"
+    points = alt.Chart(frame).mark_circle(size=320, opacity=0.85).encode(
+        x=alt.X("cost:Q", title=axis),
+        y=alt.Y("accuracy:Q", title="correct (%)", scale=alt.Scale(domain=[0, 100])),
+        color=alt.Color("backend:N", legend=None),
+        tooltip=["backend", "cost", "accuracy"])
+    names = points.mark_text(align="left", dx=12, fontSize=12, color="#8b8d98").encode(
+        text="backend:N")
+    st.altair_chart((points + names).properties(height=320), use_container_width=True)
 
 
 def _scoreboard_table(board) -> None:

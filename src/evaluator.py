@@ -35,21 +35,50 @@ DB_PATH = RESULTS_DIR / "scores.sqlite"
 # model yields None rather than a plausible-looking number, because a wrong cost
 # on a slide is worse than a missing one. Set the rate for any model with
 # REGWATCH_PRICE_IN_PER_M / REGWATCH_PRICE_OUT_PER_M.
-_PRICES_PER_M = {
-    "gpt-4o-mini": (0.15, 0.60),
-}
+PRICING_FILE = Path(__file__).resolve().parent.parent / "config" / "pricing.yaml"
+_pricing_cache: Optional[List[Dict[str, Any]]] = None
 
 
-def _price_per_m(model: Optional[str]) -> Optional[tuple]:
+def _pricing_table() -> List[Dict[str, Any]]:
+    """Load config/pricing.yaml once. A missing or unreadable file means no
+    model is priced, which reports unknown — never a default rate."""
+    global _pricing_cache
+    if _pricing_cache is None:
+        try:
+            import yaml
+            loaded = yaml.safe_load(PRICING_FILE.read_text()) or {}
+            _pricing_cache = loaded.get("models") or []
+        except Exception:
+            _pricing_cache = []
+    return _pricing_cache
+
+
+def price_for(model: Optional[str]) -> Optional[Dict[str, Any]]:
+    """The rate used for this model, with the source that justifies it.
+
+    Returns None for a model we have no confirmed rate for, so every cost
+    derived from it is unknown rather than a plausible-looking number.
+    """
     env_in = os.environ.get("REGWATCH_PRICE_IN_PER_M")
     env_out = os.environ.get("REGWATCH_PRICE_OUT_PER_M")
     if env_in and env_out:
-        return float(env_in), float(env_out)
+        return {"input_per_m": float(env_in), "output_per_m": float(env_out),
+                "source": "REGWATCH_PRICE_IN_PER_M / _OUT_PER_M", "as_of": None}
     name = (model or "").lower()
-    for key, rate in _PRICES_PER_M.items():
-        if key in name:
-            return rate
+    for entry in _pricing_table():
+        match = str(entry.get("match", "")).lower()
+        if match and match in name:
+            return {"input_per_m": entry.get("input_per_m"),
+                    "output_per_m": entry.get("output_per_m"),
+                    "source": entry.get("source"), "as_of": str(entry.get("as_of"))}
     return None
+
+
+def _price_per_m(model: Optional[str]) -> Optional[tuple]:
+    rate = price_for(model)
+    if not rate or rate.get("input_per_m") is None or rate.get("output_per_m") is None:
+        return None
+    return rate["input_per_m"], rate["output_per_m"]
 
 
 @dataclass
@@ -140,6 +169,9 @@ def provenance() -> Dict[str, Any]:
         "cache_dir": os.environ.get("REGWATCH_CACHE_DIR"),
         # Which arm of the prompt experiment produced this row.
         "recency_hint": os.environ.get("REGWATCH_RECENCY_HINT", "1") != "0",
+        # The rate that produced this row's cost, and what justifies it. None
+        # when the model has no confirmed rate, in which case cost is unknown.
+        "pricing": price_for(os.environ.get("REGWATCH_MODEL", "gpt-4o-mini")),
     }
 
 
@@ -173,7 +205,8 @@ def check_log_mode(mode: str, path: Path = RUN_LOG) -> None:
 
 
 def log_turn(session_id: str, backend: str, probe: Probe, turn: Optional[TurnResult],
-             scores: Optional[Dict[str, Any]], status: str, error: Optional[str] = None) -> None:
+             scores: Optional[Dict[str, Any]], status: str, error: Optional[str] = None,
+             cached: Optional[bool] = None) -> None:
     """One line per probe per backend. The UI replays this file; the offline
     scorer reads it. Failures are logged too — a backend that timed out is a
     result, not a gap."""
@@ -184,6 +217,8 @@ def log_turn(session_id: str, backend: str, probe: Probe, turn: Optional[TurnRes
         "backend": backend,
         "status": status,
         "error": error,
+        # None when unknown, which is not the same as False.
+        "cached": cached,
         **provenance(),
         "probe": asdict(probe),
         "answer": turn.answer if turn else None,
