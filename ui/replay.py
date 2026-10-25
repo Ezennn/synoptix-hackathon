@@ -25,8 +25,42 @@ def load_log(path: Path = DEFAULT_LOG) -> List[Dict[str, Any]]:
         for line in fh:
             line = line.strip()
             if line:
-                records.append(json.loads(line))
+                records.append(_price(json.loads(line)))
     return records
+
+
+def _price(record: Dict[str, Any]) -> Dict[str, Any]:
+    """Fill in cost for a row written before its model had a confirmed rate.
+
+    A row stores what was known when it was written, so a run whose rate only
+    reached config/pricing.yaml afterwards carries `cost_usd: null` for ever and
+    the whole dashboard reads unpriced. Pricing it here — from the row's own
+    model and its measured token counts, not the current environment's — keeps
+    the committed evidence untouched while the figures stay current.
+
+    A row that already has a cost keeps it, and a model still absent from the
+    table stays unknown rather than quietly becoming zero.
+    """
+    scores = record.get("scores") or {}
+    if scores.get("cost_usd") is not None:
+        return record
+    tokens_in, tokens_out = scores.get("tokens_in"), scores.get("tokens_out")
+    if tokens_in is None or tokens_out is None:
+        return record
+    try:
+        from src.evaluator import price_for
+        rate = price_for(record.get("model"))
+    except Exception:
+        return record
+    if not rate or rate.get("input_per_m") is None or rate.get("output_per_m") is None:
+        return record
+    scores["cost_usd"] = round(tokens_in / 1e6 * rate["input_per_m"]
+                               + tokens_out / 1e6 * rate["output_per_m"], 8)
+    record["scores"] = scores
+    record.setdefault("pricing", None)
+    if record["pricing"] is None:
+        record["pricing"] = dict(rate, priced_at_read=True)
+    return record
 
 
 def backend_order() -> List[str]:
@@ -337,3 +371,117 @@ def efficiency_pick(board: List[Dict[str, Any]],
                    "no configuration reached {:.0%} — none is shippable at this "
                    "bar".format(min_accuracy)),
     }
+
+
+# --------------------------------------------------------------------------
+# What changed in the account, and whether the assistant kept up.
+#
+# scoreboard() answers "which memory layer should we ship". That is the
+# engineer's question. The person who owns the account asks a different one:
+# which facts moved, and is the assistant still quoting the old ones. Same
+# evidence, read along the other axis — by fact instead of by backend.
+# --------------------------------------------------------------------------
+
+FACTS_FILE = Path(__file__).resolve().parent.parent / "data" / "facts.yaml"
+
+
+def _facts() -> List[Dict[str, Any]]:
+    try:
+        import yaml
+        with FACTS_FILE.open() as fh:
+            return (yaml.safe_load(fh) or {}).get("facts") or []
+    except Exception:
+        return []
+
+
+def _pretty(text: str) -> str:
+    return (text or "").replace("_", " ").strip()
+
+
+def _on(date: Optional[str]) -> str:
+    """2026-03-15 -> 15 Mar 2026. Left alone if it is not a plain ISO date."""
+    try:
+        from datetime import datetime
+        return datetime.strptime(date, "%Y-%m-%d").strftime("%-d %b %Y")
+    except Exception:
+        return date or ""
+
+
+def _timeline() -> List[Dict[str, Any]]:
+    """Every point at which a fact in the answer key stopped being true.
+
+    Facts are grouped by what they describe, not by id, because a change is a
+    pair of versions: the successor is only a change when you can see what it
+    replaced. Three shapes exist in the key and all three matter to a reader:
+    a value replaced by another, a value that simply ended, and a value that
+    was never stated but follows from something else.
+    """
+    groups: Dict[tuple, List[Dict[str, Any]]] = {}
+    for fact in _facts():
+        groups.setdefault((fact.get("entity"), fact.get("attribute")), []).append(fact)
+
+    changes = []
+    for (entity, attribute), versions in groups.items():
+        versions.sort(key=lambda f: str(f.get("valid_from") or ""))
+        ids = [f.get("id") for f in versions]
+        common = dict(entity=entity, attribute=attribute, fact_ids=ids,
+                      label="{} · {}".format(_pretty(entity), _pretty(attribute)),
+                      tier=versions[-1].get("tier"))
+        for before, after in zip(versions, versions[1:]):
+            changes.append(dict(common, kind="changed", old=str(before.get("value")),
+                                new=str(after.get("value")),
+                                on=str(after.get("valid_from"))))
+        last = versions[-1]
+        if last.get("valid_until"):
+            changes.append(dict(common, kind="ended", old=str(last.get("value")),
+                                new=None, on=str(last.get("valid_until"))))
+        elif len(versions) == 1 and last.get("derivation"):
+            changes.append(dict(common, kind="derived", old=None,
+                                new=str(last.get("value")),
+                                on=str(last.get("valid_from")),
+                                why=str(last.get("derivation"))))
+    return changes
+
+
+def fact_changes(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Per change: who still gets it wrong, and whether they repeat the old value.
+
+    Only probes asked on or after the change date count. A question asked in
+    January is not evidence about a March update, and scoring it here would
+    blame a backend for answering correctly.
+    """
+    out = []
+    for change in _timeline():
+        ids, asked = set(change["fact_ids"]), str(change["on"])
+        relevant = [r for r in records
+                    if set((r.get("probe") or {}).get("fact_ids") or []) & ids
+                    and str((r.get("probe") or {}).get("ask_date") or "") >= asked]
+        if not relevant:
+            continue
+
+        by_backend: Dict[str, Dict[str, int]] = {}
+        for record in relevant:
+            consistency = (record.get("scores") or {}).get("consistency") or {}
+            seat = by_backend.setdefault(record["backend"],
+                                         {"total": 0, "wrong": 0, "stale": 0,
+                                          "declined": 0})
+            seat["total"] += 1
+            if consistency.get("passed"):
+                continue
+            seat["wrong"] += 1
+            if consistency.get("abstained"):
+                seat["declined"] += 1
+            elif change["old"] and _value_present(record.get("answer") or "",
+                                                  change["old"]):
+                seat["stale"] += 1
+
+        totals = {k: sum(s[k] for s in by_backend.values())
+                  for k in ("total", "wrong", "stale", "declined")}
+        out.append(dict(
+            change, by_backend=by_backend, **totals,
+            layers_wrong=sum(1 for s in by_backend.values() if s["wrong"]),
+            layers_stale=sum(1 for s in by_backend.values() if s["stale"]),
+            layers=len(by_backend), on_display=_on(change["on"])))
+
+    out.sort(key=lambda c: (-c["stale"], -c["wrong"], c["on"]))
+    return out

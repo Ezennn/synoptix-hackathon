@@ -1,4 +1,4 @@
-# RegWatch
+# TraceWise AI
 
 **An automated safety exam for AI memory — run before an assistant reaches real customers.**
 
@@ -22,7 +22,7 @@ in two opposite directions:
 
 From outside, both look the same: a fluent, confident assistant. Model evaluation does
 not catch either one, because it scores the *answer*, not the context the answer came
-from. That context layer is what RegWatch tests.
+from. That context layer is what TraceWise AI tests.
 
 This is not hypothetical. In *Moffatt v. Air Canada* (2024 BCCRT 149) the airline argued
 its chatbot was a "separate legal entity" responsible for its own answers. The tribunal
@@ -41,19 +41,26 @@ said.
 
 ## What we measured
 
-100 questions, 3 memory systems, 300 live answers. Same model (Claude Haiku), same system
+100 questions, 3 memory systems, 300 live answers. Same model (Claude Opus), same system
 prompt for every backend — the only variable is the memory layer.
 
-| Memory configuration | Correct | Couldn't answer | Stale fact in context | Tokens/query |
-|---|---|---|---|---|
-| Keep everything | **92 / 100** | 2 | 71% | 1,086 |
-| Latest-per-key reducer | 75 / 100 | 13 | 54% | 480 |
-| Trim to token budget | **22 / 100** | **61** | 17% | 250 |
+| Memory configuration | Correct | Couldn't answer | Stale fact in context | Tokens/query | $/correct answer |
+|---|---|---|---|---|---|
+| Keep everything | **88 / 100** | 0 | 71% | 1,086 | $0.0074 |
+| Latest-per-key reducer | **86 / 100** | 5 | 54% | 480 | **$0.0044** |
+| Trim to token budget | **24 / 100** | **49** | 17% | 250 | $0.0207 |
 
-Two things to read here. The spread — 22% to 92% — comes from the memory layer alone.
-And trimming has the *least* stale context of the three while being by far the worst,
-because it holds almost nothing: it declined 61 times out of 100. A metric that flatters
-the emptiest system is why these are reported together.
+Three things to read here. The spread — 24% to 88% — comes from the memory layer alone.
+The reducer is the buy: 44% of the tokens for 2 points of accuracy. And trimming has the
+*least* stale context of the three while being by far the worst, because it holds almost
+nothing: it declined 49 times out of 100. A metric that flatters the emptiest system is
+why these are reported together.
+
+The last column is why "cheapest" is the wrong question. Trimming costs the least per
+query and the most per *correct* answer — nearly 5x the reducer — because you pay for
+every one of the 49 answers it couldn't give. Rates come from `config/pricing.yaml`,
+where each one carries its source and the date it was taken; a model with no entry there
+reports cost as unknown, never zero.
 
 ### The result we did not want
 
@@ -61,8 +68,10 @@ Our hypothesis was that stale facts poison answers. We tested it: the system pro
 contained one line, *"If facts conflict, prefer the most recent."* We removed it and
 re-ran all 300.
 
-- Removing it costs **4–7 points** of accuracy across all three systems.
-- But of the **19** questions that broke, only **7** had a stale fact in context.
+- **12** answers broke; 5 others got better. Net damage is small and lopsided — the
+  reducer lost 10 points, while keeping everything and trimming barely moved.
+- Of the **12** that broke, **none** had a stale fact in context — though 58 other
+  answers in the same run did.
 
 If contamination were the mechanism, the damage would have concentrated there. It did
 not. On this model, what breaks the adviser is **forgetting**, not remembering too well.
@@ -95,12 +104,13 @@ For real answers, put a key in `.env` (`ANTHROPIC_API_KEY=...`, gitignored) and:
 
 ```bash
 .venv/bin/python scripts/run_benchmark.py \
-    --mode live --model anthropic/claude-haiku-5-5 \
+    --mode live --model anthropic/claude-opus-5-5 \
     --cache-dir results/cache-live
 ```
 
-300 calls, about three minutes, roughly $0.40. Responses are cached on disk, so a re-run
-is free. Use a fresh `--cache-dir` when you care about latency: a cached turn returns in
+300 calls on Opus, about twenty minutes. Responses are cached on disk, so a re-run
+is free. Haiku (`anthropic/claude-haiku-5-5`) runs the same benchmark in about three
+minutes if you only want to exercise the pipeline; the committed results are Opus. Use a fresh `--cache-dir` when you care about latency: a cached turn returns in
 ~0 ms, and each answer records whether it was served from cache.
 
 Only one benchmark may write the run log at a time — a second one refuses rather than
@@ -143,7 +153,9 @@ select — demoing the wrong one should take deliberate effort.
 | `src/evaluator.py` | Scoring, run-log provenance, the scoreboard store |
 | `scripts/run_benchmark.py` | The benchmark runner |
 | `app.py`, `ui/replay.py` | Dashboard and its aggregation |
-| `results/run_log.recency-*.jsonl` | The two committed A/B runs |
+| `results/run_log.opus*.jsonl` | The two committed Opus A/B runs (`run_log.jsonl` is the `-on` arm) |
+| `TraceWise_AI_Broader_Pitch.pptx` | The pitch deck; slide 07 quotes the Opus numbers above |
+| `PITCH_SCRIPT.md` | The spoken script, extracted from the deck's speaker notes |
 
 Built by two agents against one frozen interface; see [PLAN.md](PLAN.md) and
 [AGENT_B_PLAN.md](AGENT_B_PLAN.md).
@@ -153,8 +165,10 @@ Built by two agents against one frozen interface; see [PLAN.md](PLAN.md) and
 - **Synthetic data only.** One fictional client (Acme Capital Partners LLP) and an
   invented versioned policy. No real client information. MiFID is real regulation; the
   policy versions here are not.
-- **One model, one timeline.** Claude Haiku, four sessions, 100 questions. Per-bucket
-  samples run from 7 to 34. We are not claiming a general law.
+- **One model, one timeline.** Claude Opus, four sessions, 100 questions. Per-bucket
+  samples run from 7 to 34. We are not claiming a general law. The earlier Haiku run is
+  kept in `results/run_log.haiku-current.jsonl` for comparison; its spread is wider
+  (22–92) because the reducer degrades more on the smaller model.
 - **The transitive tier does not yet require inference** — session 3 states the derived
   conclusion verbatim, so the model is handed the answer rather than deducing it.
 - **Abstention is scored as incorrect.** That is the right semantics for "did the memory

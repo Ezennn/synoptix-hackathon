@@ -1,4 +1,4 @@
-"""RegWatch — AI memory assurance gate.
+"""TraceWise AI — memory assurance gate.
 
 The dashboard a team runs before shipping an assistant: what we tested, where
 each memory system fails, the evidence for any single failure, and what to
@@ -9,6 +9,7 @@ the network, so the stage demo cannot fail on a cold API.
 """
 from __future__ import annotations
 
+import html
 import json
 import sys
 from pathlib import Path
@@ -21,7 +22,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ui.replay import (  # noqa: E402
     CAUSES, DEFAULT_LOG, TIERS, backend_order, by_tier, columns_for,
-    efficiency_pick, failures, has_stale, highlight, load_log, probes, run_meta,
+    efficiency_pick, fact_changes, failures, has_stale, highlight, load_log,
+    probes, run_meta,
     scoreboard, stale_by_phase,
 )
 
@@ -101,12 +103,12 @@ def _log_summary(path) -> str:
 # --------------------------------------------------------------------------
 
 def main() -> None:
-    st.set_page_config(page_title="RegWatch", layout="wide")
+    st.set_page_config(page_title="TraceWise AI", layout="wide")
     st.markdown(CSS, unsafe_allow_html=True)
 
     logs = _available_logs()
     if not logs:
-        st.title("RegWatch")
+        st.title("TraceWise AI")
         st.warning("No run log in `{}`. Run `python scripts/run_benchmark.py`."
                    .format(DEFAULT_LOG.parent))
         return
@@ -122,7 +124,7 @@ def main() -> None:
 
     records = load_log(chosen)
     if not records:
-        st.title("RegWatch")
+        st.title("TraceWise AI")
         st.warning("`{}` is empty.".format(chosen))
         return
 
@@ -163,7 +165,7 @@ def main() -> None:
 
 
 def _header(meta) -> None:
-    st.title("RegWatch")
+    st.title("TraceWise AI")
     st.caption("Does your assistant still know what changed? "
                "An assurance gate for AI memory, run before customers see it.")
     cols = st.columns(4)
@@ -260,10 +262,15 @@ def _cost_efficiency(records, board, meta) -> None:
 
     pricing = (records[0] or {}).get("pricing") if records else None
     if pricing:
-        st.caption("Priced at ${:.2f} in / ${:.2f} out per million tokens — "
-                   "source: {} (as of {}).".format(
+        # Escape the dollars: a pair of them is LaTeX to Streamlit's markdown,
+        # which silently renders "$4.00 in / $20.00 out" as an equation.
+        st.caption("Priced at \\${:.2f} in / \\${:.2f} out per million tokens — "
+                   "source: {} (as of {}).{}".format(
                        pricing.get("input_per_m"), pricing.get("output_per_m"),
-                       pricing.get("source"), pricing.get("as_of")))
+                       pricing.get("source"), pricing.get("as_of"),
+                       " Applied when this log was read — the run predates the"
+                       " rate landing in config/pricing.yaml."
+                       if pricing.get("priced_at_read") else ""))
     else:
         st.warning("No confirmed token rate for **{}**, so every dollar figure "
                    "reads unknown rather than zero. Add it to `config/pricing.yaml`, "
@@ -460,15 +467,99 @@ def _fact_history(probe) -> str:
 # 3. recommendation
 # --------------------------------------------------------------------------
 
+def _pretty_attribute(attribute: str) -> str:
+    """risk_appetite_crypto -> Risk appetite crypto. The attribute is what the
+    reader came for, so it is the card's heading; the entity is context."""
+    words = (attribute or "").replace("_", " ").strip()
+    return words[:1].upper() + words[1:]
+
+
+def _account_findings(records) -> None:
+    """What moved in the file, and whether the assistant is still behind on it.
+
+    Ranked by answers that repeated the old value, because confidently stating
+    a superseded fact is the failure that reaches a customer. A layer that
+    declines is wrong too, but it is wrong out loud.
+    """
+    changes = fact_changes(records)
+    if not changes:
+        st.info("No fact in the answer key changed during this run.")
+        return
+
+    behind = [c for c in changes if c["wrong"]]
+    st.subheader("What changed in the account")
+    st.caption(
+        "{} of the {} updates in this client's file are still being answered with "
+        "the old information by at least one memory layer. Ordered by how often "
+        "the superseded value was repeated back.".format(len(behind), len(changes)))
+
+    for change in changes:
+        if change["kind"] == "ended":
+            headline = "{} <span style='color:{}'>no longer true</span>".format(
+                html.escape(change["old"]), WARN)
+        elif change["kind"] == "derived":
+            headline = "now <b>{}</b> <span class='kv'>— by inference, never "
+            headline = (headline + "stated</span>").format(html.escape(change["new"]))
+        else:
+            headline = "{} <span class='kv'>&rarr;</span> <b>{}</b>".format(
+                html.escape(change["old"]), html.escape(change["new"]))
+
+        def layers(n):
+            return "{} of {} memory layer{}".format(n, change["layers"],
+                                                    "" if n == 1 else "s")
+
+        if not change["wrong"]:
+            colour = GOOD
+            verdict = "Every memory layer answers with the current value."
+        elif change["stale"]:
+            colour = "#e5484d"
+            verdict = ("{} answer{} repeated the old value — {} still quoting it."
+                       .format(change["stale"], "" if change["stale"] == 1 else "s",
+                               layers(change["layers_stale"])))
+        else:
+            colour = WARN
+            verdict = ("{} answer{} wrong, none repeating the old value: {} "
+                       "declined rather than answer.".format(
+                           change["wrong"], "" if change["wrong"] == 1 else "s",
+                           change["declined"]))
+
+        chips = " ".join(
+            "<span class='pill' style='color:{}'>{}&nbsp;{}/{}</span>".format(
+                GOOD if seat["wrong"] == 0 else ("#e5484d" if seat["stale"] else WARN),
+                html.escape(name), seat["total"] - seat["wrong"], seat["total"])
+            for name, seat in sorted(change["by_backend"].items()))
+
+        attribute = _pretty_attribute(change["attribute"])
+        st.markdown(
+            "<div class='card' style='border-color:{}'>"
+            "<h4>{}</h4>"
+            "<div class='answer'>{}</div>"
+            "<div class='meta'>{} · changed {} · {} answers since</div>"
+            "<div class='verdict' style='color:{}'>{}</div>"
+            "<div style='margin-top:.45rem'>{} <span class='kv'>&nbsp;correct / asked"
+            "</span></div>"
+            "</div>".format(
+                colour, html.escape(attribute), headline,
+                html.escape(change["entity"].replace("_", " ")),
+                change["on_display"], change["total"], colour, verdict, chips),
+            unsafe_allow_html=True)
+
+    st.caption("Each count is answers, not questions: every question is asked once "
+               "per memory layer, so one stale fact can show up three times.")
+
+
 def _recommendation(records, board) -> None:
+    _account_findings(records)
+
     scored = [r for r in board if r["answered"] and r["consistency_rate"] is not None]
     if not scored:
-        st.info("Nothing scored in this run.")
         return
     best = max(scored, key=lambda r: r["consistency_rate"])
     cheapest = min(scored, key=lambda r: r["avg_tokens_in"] or 0)
 
+    st.divider()
     st.subheader("What we would change")
+    st.caption("The same evidence read by memory layer, for whoever owns the system.")
     cols = st.columns(2)
     cols[0].markdown(
         '<div class="card" style="border-color:{}"><h4 style="color:{}">Most reliable'
