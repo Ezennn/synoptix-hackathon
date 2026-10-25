@@ -155,6 +155,7 @@ select — demoing the wrong one should take deliberate effort.
 | `app.py`, `ui/replay.py` | Dashboard and its aggregation |
 | `results/run_log.opus*.jsonl` | The two committed Opus A/B runs (`run_log.jsonl` is the `-on` arm) |
 | `TraceWise_AI_Broader_Pitch.pptx` | The pitch deck; slide 07 quotes the Opus numbers above |
+| `PITCH_SCRIPT.md` | The spoken script, extracted from the deck's speaker notes |
 
 Built by two agents against one frozen interface; see [PLAN.md](PLAN.md) and
 [AGENT_B_PLAN.md](AGENT_B_PLAN.md).
