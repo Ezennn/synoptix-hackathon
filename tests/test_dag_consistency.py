@@ -86,9 +86,13 @@ def test_plain_value_matching():
     assert score_probe(probe("conservative"), "Aggressive.").score == 0.0
 
 
-def test_asserting_both_current_and_superseded_fails():
+def test_naming_the_old_value_as_past_is_correct():
+    """This test originally asserted 0.0 — encoding the node-B bug as if it
+    were the spec. "Conservative now, though previously aggressive" is a
+    correct answer: it gives the current value and marks the old one as past.
+    See test_naming_the_old_value_as_old_is_not_a_contradiction below."""
     answer = "Conservative now, though previously aggressive."
-    assert score_probe(probe("conservative", ["aggressive"]), answer).score == 0.0
+    assert score_probe(probe("conservative", ["aggressive"]), answer).score == 1.0
 
 
 def test_whole_word_matching_for_plain_values():
@@ -124,3 +128,22 @@ def test_a_real_answer_is_not_mistaken_for_abstention():
     result = score_probe(probe("conservative"), "Conservative.")
     assert result.score == 1.0
     assert result.abstained is False
+
+
+# --- defect 5: explaining the supersession was scored as falling for it -----
+
+def test_naming_the_old_value_as_old_is_not_a_contradiction():
+    """Found when Opus scored 29 points below Haiku. Its answers were better,
+    not worse: they gave the current value AND said why the old one no longer
+    applies. Node B saw the old value anywhere in the text and failed them,
+    which systematically penalises models that explain themselves."""
+    answer = ("**Conservative.** This is the most recent update and supersedes "
+              "the earlier \"aggressive\" setting.")
+    assert score_probe(probe("conservative", ["aggressive"]), answer).score == 1.0
+
+
+def test_a_bare_stale_assertion_still_fails():
+    assert score_probe(probe("conservative", ["aggressive"]),
+                       "The client is aggressive.").score == 0.0
+    assert score_probe(probe("conservative", ["aggressive"]),
+                       "Conservative and aggressive both apply.").score == 0.0

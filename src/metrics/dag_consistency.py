@@ -199,13 +199,18 @@ def score_probe(probe: Dict, answer: str) -> DagScore:
         # real contradiction (e.g. current 'United Kingdom' vs stale 'Kingdom')
         if _normalize(stale) and _normalize(stale) in _normalize(expected):
             continue
-        if _asserts_value(answer, stale):
-            return DagScore(
-                0.0, False,
-                "asserts current %r but ALSO stale %r (contradiction unresolved)"
-                % (expected, stale),
-                pid,
-            )
+        if not _asserts_value(answer, stale):
+            continue
+        # Naming the old value while marking it as old is resolving the
+        # conflict, not falling for it.
+        if _only_as_history(_normalize(answer), stale):
+            continue
+        return DagScore(
+            0.0, False,
+            "asserts current %r but ALSO stale %r (contradiction unresolved)"
+            % (expected, stale),
+            pid,
+        )
 
     return DagScore(1.0, True, "asserts current %r, no stale value" % expected, pid)
 
@@ -298,3 +303,30 @@ def value_in_text(text: str, value: str) -> bool:
     if re.search(_bounded(re.escape(target)), body):
         return True
     return _has_all_tokens(body, target)
+
+
+# Words that frame a value as past rather than asserting it now. An answer may
+# cite the superseded value precisely because it is resolving the conflict —
+# "conservative, which supersedes the earlier aggressive setting" is a better
+# answer than a bare "conservative", not a worse one.
+_HISTORICAL_FRAME = re.compile(
+    r"(earlier|previous|previously|supersed\w*|replac\w*|former\w*|prior|past|"
+    r"no longer|outdated|archival|historic\w*|used to|was |were |old |before)"
+)
+
+
+def _only_as_history(answer: str, value: str) -> bool:
+    """Is every mention of `value` framed as a past value?
+
+    Checked per occurrence: one bare assertion anywhere is still an assertion,
+    so an answer that hedges in one place and asserts in another fails.
+    """
+    pattern = _bounded(re.escape(_normalize(value)))
+    found = list(re.finditer(pattern, answer))
+    if not found:
+        return False
+    for match in found:
+        window = answer[max(0, match.start() - 90):match.end() + 90]
+        if not _HISTORICAL_FRAME.search(window):
+            return False
+    return True

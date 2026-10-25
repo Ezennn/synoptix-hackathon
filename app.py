@@ -512,7 +512,7 @@ def _recommendation(records, board) -> None:
     st.markdown(
         '<div class="card"><h4>Free fix, measured</h4><div class="answer">'
         'Keeping “If facts conflict, prefer the most recent” in the system prompt '
-        'is worth <b>4–7 points</b> of accuracy across every memory system we '
+        'is worth <b>1–4 points</b> of accuracy across every memory system we '
         'tested, and costs nothing. Compare the <code>.recency-on</code> and '
         '<code>.recency-off</code> runs in the sidebar.</div></div>',
         unsafe_allow_html=True)
