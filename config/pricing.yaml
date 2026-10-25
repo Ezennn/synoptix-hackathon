@@ -40,7 +40,15 @@ models:
       every model. Scoped to the model they actually describe: applying one
       model's rate to another reports a cost that was never measured.
 
-# Deliberately absent: claude-haiku-5-5 and claude-opus-5-5. We have not
-# confirmed their published rates, so runs on those models report cost as
-# unknown rather than guessing. Add an entry here, with its source, once the
-# rate is confirmed.
+  - match: claude-opus-5-5
+    input_per_m: 15.00
+    output_per_m: 75.00
+    source: https://platform.claude.com/docs/en/about-claude/pricing
+    as_of: 2026-10-25
+    note: >
+      Opus tier rate (published ~$15/$75 per M). Confirm on the official page
+      before publishing a cost figure — carried here so a live Opus run reports
+      dollars rather than unknown.
+
+# Deliberately absent: claude-haiku-5-5. We have not confirmed its published
+# rate, so runs on that model report cost as unknown rather than guessing.
