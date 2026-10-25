@@ -304,6 +304,14 @@ def _overview(records, meta) -> None:
     cols[2].metric("Memory systems in this run", len(answered) or meta.get("backends", 0))
 
     st.divider()
+    st.markdown("### Memory systems under test")
+    st.caption("Every declared backend and its state in THIS run. A backend with "
+               "no answers here is shown as unavailable (its client is not "
+               "installed, or it is still a spike-gated scaffold) rather than "
+               "hidden — so the full roster is always visible.")
+    _backend_roster(records)
+
+    st.divider()
     st.markdown("### The 4 scenarios")
     st.caption("Each is one entity's fact-timeline across sessions S1–S4.")
     grid = st.columns(2)
@@ -347,6 +355,53 @@ def _overview(records, meta) -> None:
                "cell. Baseline and the two-timeline compliance probes span "
                "scenarios, so they are counted under their parameter.")
     _coverage_matrix(records)
+
+
+BACKEND_BLURB = {
+    "stub_current": "fixture — always surfaces the live fact (control)",
+    "stub_stale": "fixture — always surfaces the superseded fact (control)",
+    "sanity": "full history in context (accuracy ceiling, high cost)",
+    "litellm_trim": "recent verbatim + older summarised (compaction)",
+    "langgraph_state": "custom reducer — latest value per fact",
+    "langgraph_tuned": "reducer + Rung-1 held_via dependency inference (tuned)",
+    "zep_graph": "temporal knowledge graph — depth-2 multi-hop (tuned design)",
+    "letta_paging": "self-editing core memory — consequence-aware (tuned design)",
+}
+
+
+def _backend_roster(records) -> None:
+    """All declared backends with their state in this run."""
+    from src.registry import status as registry_status
+    answered = {}
+    for r in records:
+        if r["status"] == "ok":
+            answered[r["backend"]] = answered.get(r["backend"], 0) + 1
+    rows = []
+    for s in registry_status():
+        name = s["name"]
+        n = answered.get(name, 0)
+        if n:
+            state = "✓ answered {} probes".format(n)
+        elif "not installed" in s["reason"]:
+            state = "⚠ unavailable — {}".format(s["reason"])
+        elif "not written" in s["reason"] or "scaffold" in s["reason"]:
+            state = "⚠ scaffold — spike-gated"
+        else:
+            state = "— {}".format(s["reason"])
+        rows.append({
+            "memory system": name,
+            "what it is": BACKEND_BLURB.get(name, s.get("note") or ""),
+            "state in this run": state,
+        })
+    st.dataframe(rows, width="stretch", hide_index=True)
+    if not any(answered.get(b) for b in ("zep_graph", "letta_paging")):
+        st.caption("**Zep and Letta show no results** because they are hosted "
+                   "services whose clients are not installed here (Letta also "
+                   "needs Python 3.11+), and their adapters are still spike-"
+                   "gated scaffolds — so they expose no retrieval_context to "
+                   "score. Their tuned *designs* (Zep depth-2 multi-hop, Letta "
+                   "consequence-aware editing) are captured in the adapters and "
+                   "will populate once the hosted integrations are built.")
 
 
 def _coverage_matrix(records) -> None:
@@ -733,6 +788,9 @@ def _model_cost_comparison(records) -> None:
                "~$15/$75 rate and is flagged unconfirmed. The judge model is "
                "normally held fixed on cheap Haiku for fairness — Opus is the "
                "interesting choice for the ANSWER model under test, not the judge.")
+
+
+def _scoreboard_table(board) -> None:
     rows = []
     for row in board:
         rows.append({
@@ -752,8 +810,9 @@ def _model_cost_comparison(records) -> None:
         })
     st.dataframe(rows, width="stretch", hide_index=True)
     st.caption("Stale context is deterministic: did the superseded phrase appear "
-               "in the injected text. Cost shows — when the model's token rate is "
-               "not configured, rather than a figure we cannot stand behind.")
+               "in the injected text. Context recall / relevancy are the DeepEval "
+               "judge metrics (— until a judge pass has run). Cost shows — when "
+               "the model's token rate is not configured.")
 
 
 # --------------------------------------------------------------------------
