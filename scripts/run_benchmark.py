@@ -116,7 +116,8 @@ def main(argv=None) -> int:
     # Refuse to mix modes in one log before doing any work. An expected stop,
     # so report it plainly rather than as a traceback.
     try:
-        check_log_mode(args.mode, RUN_LOG)
+        check_log_mode(args.mode, RUN_LOG, model=prov.get("model"),
+                       recency_hint=prov.get("recency_hint"))
     except RuntimeError as exc:
         print("\nrefusing to run: {}".format(exc), file=sys.stderr)
         return 2

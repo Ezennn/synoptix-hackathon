@@ -175,32 +175,53 @@ def provenance() -> Dict[str, Any]:
     }
 
 
-def check_log_mode(mode: str, path: Path = RUN_LOG) -> None:
-    """Refuse to append rows of one mode to a log holding another.
+def check_log_mode(mode: str, path: Path = RUN_LOG,
+                   model: Optional[str] = None,
+                   recency_hint: Optional[bool] = None) -> None:
+    """Refuse to append to a log produced under different conditions.
 
-    Mixing stub and live results is unrecoverable after the fact — the rows look
-    the same and the numbers quietly average together — so this is a hard stop,
-    not a warning. Rows written before provenance existed read as "unknown" and
-    also block, since they cannot be vouched for either.
+    A run log is only meaningful if every row came from the same setup. Mixing
+    is unrecoverable after the fact — the rows look the same and the numbers
+    quietly average together — so this is a hard stop, not a warning.
+
+    Mode is not enough on its own: two live runs on different models are both
+    "live", and appending one to the other silently averages two models into a
+    single scoreboard. Model and prompt arm are checked for the same reason.
+    Rows predating provenance read as "unknown" and also block, since they
+    cannot be vouched for either.
     """
     if not path.exists():
         return
-    seen = set()
+    expected = {"llm_mode": mode}
+    if model is not None:
+        expected["model"] = model
+    if recency_hint is not None:
+        expected["recency_hint"] = recency_hint
+
+    conflicts = {}
     with path.open() as fh:
         for line in fh:
             line = line.strip()
             if not line:
                 continue
             try:
-                seen.add(json.loads(line).get("llm_mode") or "unknown")
+                row = json.loads(line)
             except json.JSONDecodeError:
                 continue
-    conflicting = sorted(m for m in seen if m != mode)
-    if conflicting:
+            for field, want in expected.items():
+                got = row.get(field, "unknown")
+                if got is None:
+                    got = "unknown"
+                if got != want:
+                    conflicts.setdefault(field, set()).add(str(got))
+
+    if conflicts:
+        detail = "; ".join(
+            "{} is {} here, {!r} in the log".format(f, expected[f], "/".join(sorted(v)))
+            for f, v in sorted(conflicts.items()))
         raise RuntimeError(
-            "{} already holds {} rows; refusing to append {!r} rows. "
-            "Move it aside (e.g. results/run_log.{}.jsonl) and run again.".format(
-                path, "/".join(conflicting), mode, conflicting[0])
+            "{} was produced under different conditions ({}). Appending would "
+            "average them together. Move it aside and run again.".format(path, detail)
         )
 
 
