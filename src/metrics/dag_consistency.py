@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 
 @dataclass
@@ -44,12 +44,96 @@ class DagScore:
     passed: bool
     reason: str
     probe_id: str = ""
+    abstained: bool = False   # the model said it could not answer
 
 
-_YESNO = {
-    "yes": {"affirmative", "compliant"},
-    "no": {"negative", "non-compliant", "prohibited"},
-}
+# An answer that declines to answer is not an assertion of the current value —
+# even though it usually repeats the question, and the question contains the
+# expected value. Without this, "The provided facts don't include Acme Capital
+# Partners LLP's full legal name" scores 1.0, which flatters precisely the
+# backends that dropped the fact.
+#
+# Scoring an abstention 0.0 is the right semantics here: the question is whether
+# the memory layer still held the fact, and it did not. `abstained` is reported
+# separately so a backend that admits ignorance can be told apart from one that
+# confidently states a stale value — the first is safer in production.
+_ABSTENTION_PATTERNS = [
+    r"do(?:es)?\s*n[o']t\s+(?:include|contain|specify|mention|state|provide)",
+    r"not\s+(?:included|contained|specified|mentioned|stated|provided|available)",
+    r"(?:no|insufficient)\s+(?:information|facts|data|record)",
+    r"(?:can|could)\s*n[o']t\s+(?:determine|tell|say|answer)",
+    r"unable\s+to\s+(?:determine|tell|say|answer)",
+    r"i\s+do\s*n[o']t\s+(?:know|have)",
+]
+
+
+def _abstains(answer: str) -> bool:
+    return any(re.search(p, answer) for p in _ABSTENTION_PATTERNS)
+
+
+_VERSION_RE = re.compile(r"v\d+")
+
+# Polarity words, tried in this order; the earliest match in the answer wins.
+#
+# Deliberately NOT included: "prohibited" and "allowed". Both appear verbatim in
+# the suitability-policy value text ("v2 (crypto prohibited ...)" / "v1 (crypto
+# allowed ...)"), so an answer that merely quotes the governing policy would
+# assert a polarity it never stated.
+#
+# The negative compliance forms come first so a bare "compliant" can never win
+# from inside "non-compliant" or "not compliant".
+_POLARITY_PATTERNS = [
+    (r"non[-\s]?compliant", "no"),
+    (r"not\s+compliant", "no"),
+    (r"not\s+permitted", "no"),
+    (r"negative", "no"),
+    # "no" as a verdict, not as part of "no longer holds crypto".
+    (r"no(?!\s+(?:longer|doubt|change|further|more|other))", "no"),
+    (r"affirmative", "yes"),
+    (r"compliant", "yes"),
+    (r"permitted", "yes"),
+    (r"yes", "yes"),
+]
+
+
+def _bounded(pattern: str) -> str:
+    """Word boundary that also treats '-' as part of a word, so 'compliant'
+    does not match inside 'non-compliant' (plain \\b matches at the hyphen)."""
+    return r"(?<![\w-])(?:" + pattern + r")(?![\w-])"
+
+
+def _answer_polarity(answer: str) -> Optional[str]:
+    """The yes/no verdict an answer states, or None if it states neither."""
+    best = None  # (position, pattern order, polarity)
+    for order, (pattern, polarity) in enumerate(_POLARITY_PATTERNS):
+        match = re.search(_bounded(pattern), answer)
+        if match is None:
+            continue
+        candidate = (match.start(), order, polarity)
+        if best is None or candidate[:2] < best[:2]:
+            best = candidate
+    return best[2] if best else None
+
+
+def _split_polarity(value: str) -> Tuple[Optional[str], str]:
+    """Split 'no (v2 (crypto prohibited ...))' into ('no', 'v2 (crypto ...)').
+
+    The polarity carries the verdict and the remainder cites the governing
+    policy; both have to hold, and the polarity must never be droppable.
+    """
+    if value in ("yes", "no"):
+        return value, ""
+    match = re.match(r"^(yes|no)\b\s*(.*)$", value)
+    if match:
+        return match.group(1), match.group(2).strip()
+    return None, value
+
+
+def _has_all_tokens(answer: str, phrase: str) -> bool:
+    tokens = _significant_tokens(phrase)
+    return bool(tokens) and all(
+        re.search(_bounded(re.escape(token)), answer) for token in tokens
+    )
 
 
 def _normalize(text: str) -> str:
@@ -59,27 +143,34 @@ def _normalize(text: str) -> str:
 def _asserts_value(answer: str, value: str) -> bool:
     """Does ``answer`` assert ``value``?
 
-    - yes/no values match a word-boundary 'yes'/'no' or a tight synonym set.
-      (Deliberately NOT single letters or broad domain phrases — 'y' would
-      otherwise match the 'y' in 'crypto'.)
-    - otherwise require the value (or all its significant tokens) to appear.
+    - a value carrying a yes/no verdict ('no', or 'no (v2 (...))') requires the
+      answer to state that same verdict, AND to cite the policy named after it.
+      The verdict is never droppable: a wrong polarity fails even if every word
+      of the citation is present.
+    - otherwise require the value, or all its significant tokens, to appear as
+      whole words.
     """
     a = _normalize(answer)
     v = _normalize(value)
-    if v in ("yes", "no"):
-        if re.search(r"\b" + re.escape(v) + r"\b", a):
-            return True
-        return any(re.search(r"\b" + re.escape(syn) + r"\b", a) for syn in _YESNO[v])
     if not v:
         return False
-    # for multi-token expected answers, treat the leading yes/no + key tokens
-    return v in a or all(tok in a for tok in _significant_tokens(v))
+    polarity, citation = _split_polarity(v)
+    if polarity is not None:
+        if _answer_polarity(a) != polarity:
+            return False
+        return True if not citation else _has_all_tokens(a, citation)
+    if re.search(_bounded(re.escape(v)), a):
+        return True
+    return _has_all_tokens(a, v)
 
 
 def _significant_tokens(value: str) -> List[str]:
     toks = re.findall(r"[a-z0-9]+", _normalize(value))
     stop = {"the", "a", "an", "of", "for", "to", "is", "and", "v", "clients", "tiered"}
-    sig = [t for t in toks if t not in stop and len(t) > 2]
+    # Version tokens survive the length filter: 'v1' and 'v2' are two characters
+    # but they are the whole point of a policy citation.
+    sig = [t for t in toks
+           if (t not in stop and len(t) > 2) or _VERSION_RE.fullmatch(t)]
     return sig or toks
 
 
@@ -88,6 +179,15 @@ def score_probe(probe: Dict, answer: str) -> DagScore:
     pid = probe.get("probe_id", "")
     expected = probe.get("expected_answer", "")
     superseded = probe.get("superseded_values", []) or []
+
+    # node 0 — did the model decline to answer? Checked before anything else,
+    # because a refusal normally quotes the question, and the question contains
+    # the expected value.
+    if _abstains(_normalize(answer)):
+        return DagScore(
+            0.0, False, "abstains — the fact was not in the context", pid,
+            abstained=True,
+        )
 
     # node A — current value asserted?
     if not _asserts_value(answer, expected):
@@ -99,13 +199,18 @@ def score_probe(probe: Dict, answer: str) -> DagScore:
         # real contradiction (e.g. current 'United Kingdom' vs stale 'Kingdom')
         if _normalize(stale) and _normalize(stale) in _normalize(expected):
             continue
-        if _asserts_value(answer, stale):
-            return DagScore(
-                0.0, False,
-                "asserts current %r but ALSO stale %r (contradiction unresolved)"
-                % (expected, stale),
-                pid,
-            )
+        if not _asserts_value(answer, stale):
+            continue
+        # Naming the old value while marking it as old is resolving the
+        # conflict, not falling for it.
+        if _only_as_history(_normalize(answer), stale):
+            continue
+        return DagScore(
+            0.0, False,
+            "asserts current %r but ALSO stale %r (contradiction unresolved)"
+            % (expected, stale),
+            pid,
+        )
 
     return DagScore(1.0, True, "asserts current %r, no stale value" % expected, pid)
 
@@ -198,3 +303,51 @@ def as_deepeval_metric(threshold: float = 0.99):
             return "State Consistency (DAG)"
 
     return StateConsistencyMetric
+
+
+def value_in_text(text: str, value: str) -> bool:
+    """Is an answer-key value present in `text` — typically the retrieved context?
+
+    Polarity is stripped first: a context states the policy, it never says
+    "yes". Matching the compound form verbatim would fail on every multi-hop
+    probe and report the fact as missing when it was there.
+
+    The dashboard uses this to separate "the fact never arrived" from "the fact
+    arrived and the answer was wrong anyway". Those send an engineer to
+    different layers, so guessing between them is worse than not saying.
+    """
+    body = _normalize(text)
+    _, citation = _split_polarity(_normalize(value))
+    target = citation or _normalize(value)
+    if not body or not target:
+        return False
+    if re.search(_bounded(re.escape(target)), body):
+        return True
+    return _has_all_tokens(body, target)
+
+
+# Words that frame a value as past rather than asserting it now. An answer may
+# cite the superseded value precisely because it is resolving the conflict —
+# "conservative, which supersedes the earlier aggressive setting" is a better
+# answer than a bare "conservative", not a worse one.
+_HISTORICAL_FRAME = re.compile(
+    r"(earlier|previous|previously|supersed\w*|replac\w*|former\w*|prior|past|"
+    r"no longer|outdated|archival|historic\w*|used to|was |were |old |before)"
+)
+
+
+def _only_as_history(answer: str, value: str) -> bool:
+    """Is every mention of `value` framed as a past value?
+
+    Checked per occurrence: one bare assertion anywhere is still an assertion,
+    so an answer that hedges in one place and asserts in another fails.
+    """
+    pattern = _bounded(re.escape(_normalize(value)))
+    found = list(re.finditer(pattern, answer))
+    if not found:
+        return False
+    for match in found:
+        window = answer[max(0, match.start() - 90):match.end() + 90]
+        if not _HISTORICAL_FRAME.search(window):
+            return False
+    return True

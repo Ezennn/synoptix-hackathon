@@ -15,7 +15,7 @@
     {
       "fact_id": "suitability_policy_v2",
       "text": "Regulatory update — suitability policy is now v2 (crypto prohibited for clients tiered conservative).",
-      "tier": "baseline"
+      "tier": "direct"
     }
   ],
   "distractors": [

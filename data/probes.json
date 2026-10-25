@@ -476,8 +476,8 @@
     },
     {
       "probe_id": "p0031",
-      "phase": 1,
-      "tier": "baseline",
+      "phase": 2,
+      "tier": "direct",
       "question": "Which version of the suitability policy is currently in force?",
       "fact_ids": [
         "suitability_policy_v1"
@@ -489,12 +489,12 @@
         "v2 (crypto prohibited for clients tiered conservative)"
       ],
       "multi_hop": false,
-      "notes": "control; value never changes"
+      "notes": "direct overwrite; recency check"
     },
     {
       "probe_id": "p0032",
-      "phase": 1,
-      "tier": "baseline",
+      "phase": 2,
+      "tier": "direct",
       "question": "Which version of the suitability policy is currently in force?",
       "fact_ids": [
         "suitability_policy_v1"
@@ -506,12 +506,12 @@
         "v2 (crypto prohibited for clients tiered conservative)"
       ],
       "multi_hop": false,
-      "notes": "control; value never changes"
+      "notes": "direct overwrite; recency check"
     },
     {
       "probe_id": "p0033",
-      "phase": 1,
-      "tier": "baseline",
+      "phase": 2,
+      "tier": "direct",
       "question": "Which version of the suitability policy is currently in force?",
       "fact_ids": [
         "suitability_policy_v2"
@@ -523,12 +523,12 @@
         "v1 (crypto allowed for professional clients up to 10% AUM)"
       ],
       "multi_hop": false,
-      "notes": "control; value never changes"
+      "notes": "direct overwrite; recency check"
     },
     {
       "probe_id": "p0034",
-      "phase": 1,
-      "tier": "baseline",
+      "phase": 2,
+      "tier": "direct",
       "question": "Which version of the suitability policy is currently in force?",
       "fact_ids": [
         "suitability_policy_v2"
@@ -540,7 +540,7 @@
         "v1 (crypto allowed for professional clients up to 10% AUM)"
       ],
       "multi_hop": false,
-      "notes": "control; value never changes"
+      "notes": "direct overwrite; recency check"
     },
     {
       "probe_id": "p0035",
@@ -593,8 +593,8 @@
     },
     {
       "probe_id": "p0038",
-      "phase": 1,
-      "tier": "baseline",
+      "phase": 2,
+      "tier": "direct",
       "question": "Which version of the suitability policy is currently in force?",
       "fact_ids": [
         "suitability_policy_v1"
@@ -606,7 +606,7 @@
         "v2 (crypto prohibited for clients tiered conservative)"
       ],
       "multi_hop": false,
-      "notes": "control; value never changes"
+      "notes": "direct overwrite; recency check"
     },
     {
       "probe_id": "p0039",
@@ -619,7 +619,7 @@
       ],
       "ask_after_session": 2,
       "ask_date": "2026-03-15",
-      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
       "superseded_values": [],
       "multi_hop": true,
       "notes": "phase-3 multi-hop over client timeline + regulation timeline"
@@ -948,7 +948,7 @@
       ],
       "ask_after_session": 2,
       "ask_date": "2026-03-15",
-      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
       "superseded_values": [],
       "multi_hop": true,
       "notes": "phase-3 multi-hop over client timeline + regulation timeline"
@@ -996,7 +996,7 @@
       ],
       "ask_after_session": 2,
       "ask_date": "2026-03-15",
-      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
       "superseded_values": [],
       "multi_hop": true,
       "notes": "phase-3 multi-hop over client timeline + regulation timeline"
@@ -1260,8 +1260,8 @@
     },
     {
       "probe_id": "p0080",
-      "phase": 1,
-      "tier": "baseline",
+      "phase": 2,
+      "tier": "direct",
       "question": "Which version of the suitability policy is currently in force?",
       "fact_ids": [
         "suitability_policy_v2"
@@ -1273,7 +1273,7 @@
         "v1 (crypto allowed for professional clients up to 10% AUM)"
       ],
       "multi_hop": false,
-      "notes": "control; value never changes"
+      "notes": "direct overwrite; recency check"
     },
     {
       "probe_id": "p0081",
@@ -1370,8 +1370,8 @@
     },
     {
       "probe_id": "p0087",
-      "phase": 1,
-      "tier": "baseline",
+      "phase": 2,
+      "tier": "direct",
       "question": "Which version of the suitability policy is currently in force?",
       "fact_ids": [
         "suitability_policy_v1"
@@ -1383,12 +1383,12 @@
         "v2 (crypto prohibited for clients tiered conservative)"
       ],
       "multi_hop": false,
-      "notes": "control; value never changes"
+      "notes": "direct overwrite; recency check"
     },
     {
       "probe_id": "p0088",
-      "phase": 1,
-      "tier": "baseline",
+      "phase": 2,
+      "tier": "direct",
       "question": "Which version of the suitability policy is currently in force?",
       "fact_ids": [
         "suitability_policy_v1"
@@ -1400,7 +1400,7 @@
         "v2 (crypto prohibited for clients tiered conservative)"
       ],
       "multi_hop": false,
-      "notes": "control; value never changes"
+      "notes": "direct overwrite; recency check"
     },
     {
       "probe_id": "p0089",
@@ -1573,7 +1573,7 @@
       ],
       "ask_after_session": 2,
       "ask_date": "2026-03-15",
-      "expected_answer": "no (v1 (crypto allowed for professional clients up to 10% AUM))",
+      "expected_answer": "yes (v1 (crypto allowed for professional clients up to 10% AUM))",
       "superseded_values": [],
       "multi_hop": true,
       "notes": "phase-3 multi-hop over client timeline + regulation timeline"

@@ -28,17 +28,22 @@ MARCH = ("Mar 2026 call: client has fully divested from crypto after a family "
 
 PROBES = [
     Probe("p1", "What is this client's current risk appetite?",
-          fact_id="risk_appetite", expected_answer="conservative",
-          superseded_answer="aggressive", phase=2),
+          fact_ids=["risk_appetite"], expected_answer="conservative",
+          superseded_values=["aggressive"], phase=2, tier="single_mutation"),
     Probe("p2", "Is this client suitable for a high-risk crypto ETF?",
-          fact_id="crypto_exposure", expected_answer="fully divested",
-          superseded_answer="crypto-heavy", phase=2),
+          fact_ids=["crypto_exposure"], expected_answer="fully divested",
+          superseded_values=["crypto-heavy"], phase=2, tier="single_mutation"),
     Probe("p3", "What proportion of the portfolio is in digital assets?",
-          fact_id="crypto_exposure", expected_answer="fully divested",
-          superseded_answer="40%", phase=3),
+          fact_ids=["crypto_exposure"], expected_answer="fully divested",
+          superseded_values=["40%", "crypto-heavy"], phase=3, tier="multi_mutation"),
     Probe("p4", "Should we flag this client for a suitability review?",
-          fact_id="risk_appetite", expected_answer="conservative",
-          superseded_answer="aggressive", phase=4),
+          fact_ids=["risk_appetite"], expected_answer="conservative",
+          superseded_values=["aggressive"], phase=4, tier="distractor"),
+    # Control: nothing superseded, so stale-context is not applicable and must
+    # render as unknown rather than clean.
+    Probe("p5", "What is the client's full legal name?",
+          fact_ids=["client_name"], expected_answer="Acme Capital Partners LLP",
+          superseded_values=[], phase=1, tier="baseline"),
 ]
 
 

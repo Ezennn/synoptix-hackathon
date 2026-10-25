@@ -223,15 +223,21 @@ def build_probes(facts: List[Dict], rng: random.Random) -> List[Dict]:
         if multi_hop:
             question = _MULTIHOP_TEMPLATE.format(name=name)
             # compliance answer derived from crypto tier + policy version
-            tier_val, _, _ = current_value_at(
+            tier_val, tier_id, _ = current_value_at(
                 facts, "client_acme", "risk_appetite_crypto", ask_dt
             )
             pol_val, pol_id, _ = current_value_at(
                 facts, "policy_mifid_suitability", "version", ask_dt
             )
-            compliant = "no" if (tier_val or "").lower() == "conservative" else "yes"
+            # Compliance needs BOTH hops. Only policy v2 prohibits crypto, so a
+            # conservative tier under v1 is still compliant. Deriving this from
+            # the risk tier alone produced keys that contradicted the policy
+            # they quote — e.g. "no (v1 (crypto allowed ...))" at session 2.
+            policy_prohibits = "v2" in (pol_val or "").lower()
+            conservative = (tier_val or "").lower() == "conservative"
+            compliant = "no" if (policy_prohibits and conservative) else "yes"
             expected = "%s (%s)" % (compliant, pol_val)
-            fact_ids = ["crypto_appetite_v2" if compliant == "no" else "crypto_appetite_v1", pol_id]
+            fact_ids = [tier_id, pol_id]
             superseded_vals = []
         else:
             tmpl = _QUESTION_TEMPLATES.get(attribute, "What is the current {attribute} of {entity}?")

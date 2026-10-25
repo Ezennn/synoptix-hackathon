@@ -103,6 +103,22 @@ class LLMGateway:
         self.max_retries = max_retries
         self.cache_dir = Path(cache_dir) if cache_dir else _DEFAULT_CACHE_DIR
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # Cleared on the first provider refusal; see _live_complete.
+        self._send_temperature = True
+        # Cache status of the most recent call, plus running tallies. The
+        # frozen contract has no place for this, and a cached turn returns in
+        # ~0 ms, so without it a warm-cache run silently mixes real timings
+        # with cache reads and reports the average as if it were measured.
+        # The runner reads `last_cached` straight after each ask().
+        self.last_cached = False
+        self.calls = 0
+        self.cache_hits = 0
+        self.cache_misses = 0
+
+    def usage(self) -> Dict[str, int]:
+        """Call tallies since this gateway was created."""
+        return {"calls": self.calls, "cache_hits": self.cache_hits,
+                "cache_misses": self.cache_misses}
 
     # ---- cache ---------------------------------------------------------
     def _cache_key(self, messages: List[Dict[str, str]], max_tokens: int) -> str:
@@ -155,6 +171,9 @@ class LLMGateway:
         start = time.perf_counter()
         if hit is not None:
             latency_ms = (time.perf_counter() - start) * 1000.0
+            self.last_cached = True
+            self.cache_hits += 1
+            self.calls += 1
             return LLMResponse(
                 text=hit["text"],
                 tokens_in=hit["tokens_in"],
@@ -175,6 +194,9 @@ class LLMGateway:
 
         latency_ms = (time.perf_counter() - start) * 1000.0
         self._write_cache(key, {"text": text, "tokens_in": t_in, "tokens_out": t_out})
+        self.last_cached = False
+        self.cache_misses += 1
+        self.calls += 1
         return LLMResponse(
             text=text,
             tokens_in=t_in,
@@ -217,12 +239,18 @@ class LLMGateway:
         last_exc = None
         for attempt in range(self.max_retries):
             try:
-                resp = litellm.completion(
-                    model=self.model,
-                    messages=messages,
-                    temperature=self.temperature,
-                    max_tokens=max_tokens,
-                )
+                kwargs = {
+                    "model": self.model,
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                }
+                # Newer models reject `temperature` outright ("`temperature` is
+                # deprecated for this model"). Send it only while the model
+                # accepts it; once refused, drop it for the rest of the run so
+                # every later call does not burn its retries on the same error.
+                if self._send_temperature:
+                    kwargs["temperature"] = self.temperature
+                resp = litellm.completion(**kwargs)
                 text = resp["choices"][0]["message"]["content"] or ""
                 usage = resp.get("usage") or {}
                 t_in = int(usage.get("prompt_tokens") or _approx_tokens(
@@ -232,6 +260,10 @@ class LLMGateway:
                 return text, t_in, t_out
             except Exception as exc:  # noqa: BLE001 — retry any provider error
                 last_exc = exc
+                if self._send_temperature and "temperature" in str(exc).lower():
+                    # Retry immediately without it rather than sleeping.
+                    self._send_temperature = False
+                    continue
                 time.sleep(min(2 ** attempt, 8))
         raise RuntimeError("LLM call failed after retries: %s" % last_exc)
 

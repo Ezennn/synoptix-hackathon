@@ -34,13 +34,16 @@ class UpdateRequest(BaseModel):
 
 
 class AskRequest(BaseModel):
+    """Field names follow data/probes.json, so a record from A's generator can
+    be posted through with no translation."""
     session_id: str
     question: str
     probe_id: str = "live"
-    fact_id: Optional[str] = None
+    fact_ids: List[str] = []
     expected_answer: Optional[str] = None
-    superseded_answer: Optional[str] = None
+    superseded_values: List[str] = []
     phase: Optional[int] = None
+    tier: Optional[str] = None
 
 
 async def _call(spec: BackendSpec, method: str, *args: Any) -> Dict[str, Any]:
@@ -90,9 +93,10 @@ async def update(req: UpdateRequest) -> Dict[str, Any]:
 
 @app.post("/ask")
 async def ask(req: AskRequest) -> Dict[str, Any]:
-    probe = Probe(probe_id=req.probe_id, question=req.question, fact_id=req.fact_id,
-                  expected_answer=req.expected_answer,
-                  superseded_answer=req.superseded_answer, phase=req.phase)
+    probe = Probe(probe_id=req.probe_id, question=req.question,
+                  fact_ids=req.fact_ids, expected_answer=req.expected_answer,
+                  superseded_values=req.superseded_values, phase=req.phase,
+                  tier=req.tier)
     envelopes = await _fan_out("ask", req.session_id, req.question)
 
     columns = []
