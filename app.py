@@ -26,7 +26,7 @@ from ui.replay import (  # noqa: E402
 )
 
 ORCHESTRATOR = "http://127.0.0.1:8077"
-FROZEN_LOG = DEFAULT_LOG.parent / "run_log.recency-on.jsonl"
+FROZEN_LOG = DEFAULT_LOG.parent / "run_log.opus.jsonl"
 
 INK = "#121A2B"
 PAPER = "#FBFBF8"
