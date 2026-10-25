@@ -306,13 +306,76 @@ def scoreboard() -> List[Dict[str, Any]]:
     return [dict(zip(keys, row)) for row in rows]
 
 
-def score_offline(limit: Optional[int] = None) -> int:
-    """Axes 2 and 3 over the run log, using DeepEval / Ragas judge models.
+def _update_offline_scores(session_id: str, backend: str, probe_id: str,
+                           relevancy: Optional[float], recall: Optional[float]) -> None:
+    """Join axis-2/3 results back onto the row score_live() already wrote.
 
-    Not wired yet — needs the judge model configured and A's probe schema
-    confirmed. Kept as a separate entry point so it can be run between the
-    full sweep and the scoreboard freeze at hour 21.
+    Axis 2 (Contextual Relevancy) is stored in the existing ``context_precision``
+    column — see judge_metrics.py for why we reuse it rather than migrate the
+    schema. ``faithfulness`` stays NULL on purpose (generator metric, excluded).
     """
-    raise NotImplementedError(
-        "offline judge metrics not wired yet: needs DeepEval/Ragas + judge model config"
-    )
+    if not DB_PATH.exists():
+        return
+    conn = _connect()
+    with conn:
+        conn.execute(
+            "UPDATE scores SET context_precision = ?, contextual_recall = ? "
+            "WHERE session_id = ? AND backend = ? AND probe_id = ?",
+            (relevancy, recall, session_id, backend, probe_id),
+        )
+    conn.close()
+
+
+def score_offline(limit: Optional[int] = None) -> int:
+    """Axes 2 and 3 over the run log, using DeepEval judge metrics.
+
+    Scores Contextual Relevancy (axis 2) and Contextual Recall (axis 3) for
+    every OK record in ``results/run_log.jsonl`` that exposed a real
+    ``retrieval_context``, joins the numbers back onto the scores DB, and
+    returns how many records were scored.
+
+    Both metrics are order-free set metrics on the retrieved context, so they
+    test the memory layer, not the answer LLM (see metrics/judge_metrics.py).
+    The judge model is held fixed across backends for fairness.
+
+    Degrades gracefully: if DeepEval or a judge key is missing, it scores
+    nothing and returns 0 after printing the reason — a missing judge never
+    looks like a passing backend. Separate entry point so it runs as a batch
+    pass between the sweep and the scoreboard freeze, never in /ask.
+    """
+    from .metrics import judge_metrics
+
+    avail = judge_metrics.judge_available()
+    if not avail["ok"]:
+        print("score_offline: skipped — {}".format(avail["reason"]))
+        return 0
+    if not RUN_LOG.exists():
+        print("score_offline: no run log at {}".format(RUN_LOG))
+        return 0
+
+    judge = judge_metrics._make_judge()
+    scored = 0
+    with RUN_LOG.open(encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            if limit is not None and scored >= limit:
+                break
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            if record.get("status") != "ok":
+                continue  # a failed/timed-out probe has no context to judge
+            res = judge_metrics.score_record(record, judge=judge)
+            if res["contextual_relevancy"] is None and res["contextual_recall"] is None:
+                continue  # nothing scorable (e.g. backend exposed no context)
+            _update_offline_scores(
+                record["session_id"], record["backend"],
+                record["probe"]["probe_id"],
+                res["contextual_relevancy"], res["contextual_recall"],
+            )
+            scored += 1
+    print("score_offline: scored {} record(s) on axes 2 & 3".format(scored))
+    return scored

@@ -20,9 +20,11 @@ streamlit
 # zep-cloud
 # letta-client        # requires Python 3.11+ — Agent B's machine is on 3.9.6
 
-# Offline judge metrics (axes 2 and 3). Not wired yet; see evaluator.score_offline.
-# deepeval
-# ragas
+# Offline judge metrics (axes 2 and 3 — Contextual Relevancy + Contextual
+# Recall). Wired in evaluator.score_offline(); lazy-imported by
+# src/metrics/judge_metrics.py, which degrades gracefully when absent.
+# Install for the live scoring pass (needs Python 3.11+ and a judge key):
+# deepeval>=1.0
 
 # ---- Tests -------------------------------------------------------------------
 pytest                 # tests/test_dag_consistency.py
