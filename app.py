@@ -21,8 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from ui.replay import (  # noqa: E402
     CAUSES, DEFAULT_LOG, TIERS, backend_order, by_tier, columns_for,
-    efficiency_pick, failures, has_stale, highlight, load_log, probes, run_meta,
-    scoreboard, stale_by_phase,
+    efficiency_pick, failures, has_stale, highlight, load_log,
+    model_cost_projection, probes, run_meta, scoreboard, stale_by_phase,
 )
 
 ORCHESTRATOR = "http://127.0.0.1:8077"
@@ -675,8 +675,64 @@ def _cost_efficiency(records, board, meta) -> None:
         text="backend:N")
     st.altair_chart((points + names).properties(height=320), use_container_width=True)
 
+    _model_cost_comparison(records)
 
-def _scoreboard_table(board) -> None:
+
+def _model_cost_comparison(records) -> None:
+    """Haiku vs Opus projected cost for Part 1 (answer-gen) and Part 2 (judge),
+    from the real context sizes in this log."""
+    st.divider()
+    st.subheader("Model cost comparison — Haiku vs Opus")
+    st.caption("Projected spend to run the two paid phases on this exact probe "
+               "set, using the real context + question sizes measured in this "
+               "run. Part 1 = answer generation (one model call per probe × "
+               "backend). Part 2 = the DeepEval judge pass (Contextual Recall + "
+               "Relevancy, several judge calls per record).")
+
+    proj = model_cost_projection(records)
+    if not proj["records"]:
+        st.info("No answered records to project from.")
+        return
+
+    st.caption("Basis: **{n}** answered turns · mean answer input **{ai:.0f}** "
+               "tokens · mean judge input **{ji:.0f}** tokens · **{jc}** judge "
+               "calls (≈{k}/record, a floor).".format(
+                   n=proj["records"], ai=proj["mean_answer_in_tokens"],
+                   ji=proj["mean_judge_in_tokens"], jc=proj["judge_calls"],
+                   k=5))
+
+    rows = []
+    for label, m in proj["per_model"].items():
+        rows.append({
+            "model": label + ("" if m["confirmed"] else "  ⚠ unconfirmed rate"),
+            "rate $/M (in / out)": "{:.2f} / {:.2f}".format(m["rate_in"], m["rate_out"]),
+            "Part 1: answer-gen": "${:.3f}".format(m["answer_usd"]),
+            "Part 2: judge pass": "${:.3f}".format(m["judge_usd"]),
+            "total": "${:.2f}".format(m["total_usd"]),
+        })
+    st.dataframe(rows, width="stretch", hide_index=True)
+
+    # Grouped bar: the two phases side by side per model.
+    frame = pd.DataFrame([
+        {"model": label, "phase": phase, "usd": m[key]}
+        for label, m in proj["per_model"].items()
+        for phase, key in (("Part 1: answer-gen", "answer_usd"),
+                           ("Part 2: judge pass", "judge_usd"))
+    ])
+    chart = alt.Chart(frame).mark_bar().encode(
+        x=alt.X("model:N", title=None),
+        y=alt.Y("usd:Q", title="projected USD"),
+        color=alt.Color("phase:N", title=None),
+        xOffset="phase:N",
+        tooltip=["model", "phase", alt.Tooltip("usd:Q", format="$.3f")],
+    ).properties(height=300)
+    st.altair_chart(chart, use_container_width=True)
+    st.caption("The judge pass dominates total cost — it fans into several LLM "
+               "calls per record. Opus’s rate is NOT in `config/pricing.yaml` "
+               "(the config refuses to guess); the figure uses the published "
+               "~$15/$75 rate and is flagged unconfirmed. The judge model is "
+               "normally held fixed on cheap Haiku for fairness — Opus is the "
+               "interesting choice for the ANSWER model under test, not the judge.")
     rows = []
     for row in board:
         rows.append({

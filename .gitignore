@@ -31,3 +31,5 @@ results/*
 Thumbs.db
 .idea/
 .vscode/
+
+.venv-judge/

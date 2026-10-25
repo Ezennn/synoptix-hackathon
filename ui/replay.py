@@ -16,6 +16,73 @@ from typing import Any, Dict, List, Optional
 
 DEFAULT_LOG = Path("results/run_log.jsonl")
 
+# Published per-million-token rates for the Haiku-vs-Opus comparison. Haiku 3.5
+# matches config/pricing.yaml; Opus is NOT in that file (the config refuses to
+# guess), so it is carried here explicitly as the published rate and LABELLED
+# unconfirmed wherever it is shown. Confirm on the provider page before quoting.
+MODEL_RATES = {
+    "Haiku 3.5": {"in": 0.80, "out": 4.00, "confirmed": True},
+    "Opus 4": {"in": 15.00, "out": 75.00, "confirmed": False},
+}
+
+# How many LLM calls DeepEval makes per scored record (Recall + Relevancy, each
+# fanning into claim-extraction + verdicts). Conservative; real compound answers
+# can exceed it, so projections using it are a FLOOR.
+JUDGE_CALLS_PER_RECORD = 5
+JUDGE_OUT_TOKENS = 180          # verdicts + reasons per judge call
+ANSWER_OUT_TOKENS = 35          # short current-value answers
+
+
+def _est_tokens(text: str) -> float:
+    """Rough token estimate (~4 chars/token) for cost projection only."""
+    return len(text or "") / 4.0
+
+
+def model_cost_projection(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Project the cost of (Part 1) answer-generation and (Part 2) the DeepEval
+    judge pass, per model, from the REAL context+question sizes in this log.
+
+    Returns token measurements plus a per-model {answer_usd, judge_usd, total}.
+    Honest about provenance: the Opus rate carries confirmed=False so the UI can
+    flag it. Judge cost uses JUDGE_CALLS_PER_RECORD as a documented floor.
+    """
+    ok = [r for r in records if r["status"] == "ok"]
+    answer_in, judge_in = [], []
+    for r in ok:
+        ctx = " ".join(r.get("retrieval_context") or [])
+        q = (r.get("probe") or {}).get("question") or ""
+        expected = (r.get("probe") or {}).get("expected_answer") or ""
+        ctx_tok = _est_tokens(ctx)
+        answer_in.append(ctx_tok + _est_tokens(q) + 30)      # +system prompt
+        judge_in.append(ctx_tok + _est_tokens(q) + _est_tokens(expected) + 60)
+    n = len(ok)
+    mean_answer_in = (sum(answer_in) / n) if n else 0.0
+    mean_judge_in = (sum(judge_in) / n) if n else 0.0
+
+    def usd(n_in, n_out, rate):
+        return (n_in * rate["in"] + n_out * rate["out"]) / 1_000_000
+
+    per_model = {}
+    for label, rate in MODEL_RATES.items():
+        answer_usd = n * usd(mean_answer_in, ANSWER_OUT_TOKENS, rate)
+        judge_usd = (n * JUDGE_CALLS_PER_RECORD
+                     * usd(mean_judge_in, JUDGE_OUT_TOKENS, rate))
+        per_model[label] = {
+            "answer_usd": answer_usd,
+            "judge_usd": judge_usd,
+            "total_usd": answer_usd + judge_usd,
+            "confirmed": rate["confirmed"],
+            "rate_in": rate["in"], "rate_out": rate["out"],
+        }
+    return {
+        "records": n,
+        "mean_answer_in_tokens": mean_answer_in,
+        "mean_judge_in_tokens": mean_judge_in,
+        "judge_calls": n * JUDGE_CALLS_PER_RECORD,
+        "per_model": per_model,
+    }
+
+
 
 def load_log(path: Path = DEFAULT_LOG) -> List[Dict[str, Any]]:
     if not path.exists():
