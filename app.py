@@ -1,4 +1,4 @@
-"""RegWatch — AI memory assurance gate.
+"""TraceWise AI — memory assurance gate.
 
 The dashboard a team runs before shipping an assistant: what we tested, where
 each memory system fails, the evidence for any single failure, and what to
@@ -101,12 +101,12 @@ def _log_summary(path) -> str:
 # --------------------------------------------------------------------------
 
 def main() -> None:
-    st.set_page_config(page_title="RegWatch", layout="wide")
+    st.set_page_config(page_title="TraceWise AI", layout="wide")
     st.markdown(CSS, unsafe_allow_html=True)
 
     logs = _available_logs()
     if not logs:
-        st.title("RegWatch")
+        st.title("TraceWise AI")
         st.warning("No run log in `{}`. Run `python scripts/run_benchmark.py`."
                    .format(DEFAULT_LOG.parent))
         return
@@ -122,7 +122,7 @@ def main() -> None:
 
     records = load_log(chosen)
     if not records:
-        st.title("RegWatch")
+        st.title("TraceWise AI")
         st.warning("`{}` is empty.".format(chosen))
         return
 
@@ -163,7 +163,7 @@ def main() -> None:
 
 
 def _header(meta) -> None:
-    st.title("RegWatch")
+    st.title("TraceWise AI")
     st.caption("Does your assistant still know what changed? "
                "An assurance gate for AI memory, run before customers see it.")
     cols = st.columns(4)

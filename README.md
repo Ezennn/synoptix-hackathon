@@ -1,4 +1,4 @@
-# RegWatch
+# TraceWise AI
 
 **An automated safety exam for AI memory — run before an assistant reaches real customers.**
 
@@ -22,7 +22,7 @@ in two opposite directions:
 
 From outside, both look the same: a fluent, confident assistant. Model evaluation does
 not catch either one, because it scores the *answer*, not the context the answer came
-from. That context layer is what RegWatch tests.
+from. That context layer is what TraceWise tests.
 
 This is not hypothetical. In *Moffatt v. Air Canada* (2024 BCCRT 149) the airline argued
 its chatbot was a "separate legal entity" responsible for its own answers. The tribunal
@@ -154,7 +154,7 @@ select — demoing the wrong one should take deliberate effort.
 | `scripts/run_benchmark.py` | The benchmark runner |
 | `app.py`, `ui/replay.py` | Dashboard and its aggregation |
 | `results/run_log.opus*.jsonl` | The two committed Opus A/B runs (`run_log.jsonl` is the `-on` arm) |
-| `RegWatch_AI_Broader_Pitch.pptx` | The pitch deck; slide 07 quotes the Opus numbers above |
+| `TraceWise_AI_Broader_Pitch.pptx` | The pitch deck; slide 07 quotes the Opus numbers above |
 
 Built by two agents against one frozen interface; see [PLAN.md](PLAN.md) and
 [AGENT_B_PLAN.md](AGENT_B_PLAN.md).
