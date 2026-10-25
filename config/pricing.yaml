@@ -40,7 +40,22 @@ models:
       every model. Scoped to the model they actually describe: applying one
       model's rate to another reports a cost that was never measured.
 
-# Deliberately absent: claude-haiku-5-5 and claude-opus-5-5. We have not
-# confirmed their published rates, so runs on those models report cost as
-# unknown rather than guessing. Add an entry here, with its source, once the
-# rate is confirmed.
+  # The model the committed benchmark runs on. Confirmed against the official
+  # pricing table on the date below; cache hits are $0.20/MTok, which we do not
+  # model because the benchmark reports uncached token counts.
+  - match: claude-opus-5-5
+    input_per_m: 4.00
+    output_per_m: 20.00
+    source: https://platform.claude.com/docs/en/about-claude/pricing
+    as_of: 2026-10-25
+
+  # Prompts up to 100K tokens. The benchmark's largest context is ~1.1K, so the
+  # long-context tier ($0.50 / $2.50) never applies here — if that changes, this
+  # entry under-reports and needs splitting.
+  - match: claude-haiku-5-5
+    input_per_m: 0.10
+    output_per_m: 0.50
+    source: https://platform.claude.com/docs/en/about-claude/pricing
+    as_of: 2026-10-25
+
+# A model with no entry above still reports cost as UNKNOWN, never zero.

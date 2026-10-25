@@ -25,8 +25,42 @@ def load_log(path: Path = DEFAULT_LOG) -> List[Dict[str, Any]]:
         for line in fh:
             line = line.strip()
             if line:
-                records.append(json.loads(line))
+                records.append(_price(json.loads(line)))
     return records
+
+
+def _price(record: Dict[str, Any]) -> Dict[str, Any]:
+    """Fill in cost for a row written before its model had a confirmed rate.
+
+    A row stores what was known when it was written, so a run whose rate only
+    reached config/pricing.yaml afterwards carries `cost_usd: null` for ever and
+    the whole dashboard reads unpriced. Pricing it here — from the row's own
+    model and its measured token counts, not the current environment's — keeps
+    the committed evidence untouched while the figures stay current.
+
+    A row that already has a cost keeps it, and a model still absent from the
+    table stays unknown rather than quietly becoming zero.
+    """
+    scores = record.get("scores") or {}
+    if scores.get("cost_usd") is not None:
+        return record
+    tokens_in, tokens_out = scores.get("tokens_in"), scores.get("tokens_out")
+    if tokens_in is None or tokens_out is None:
+        return record
+    try:
+        from src.evaluator import price_for
+        rate = price_for(record.get("model"))
+    except Exception:
+        return record
+    if not rate or rate.get("input_per_m") is None or rate.get("output_per_m") is None:
+        return record
+    scores["cost_usd"] = round(tokens_in / 1e6 * rate["input_per_m"]
+                               + tokens_out / 1e6 * rate["output_per_m"], 8)
+    record["scores"] = scores
+    record.setdefault("pricing", None)
+    if record["pricing"] is None:
+        record["pricing"] = dict(rate, priced_at_read=True)
+    return record
 
 
 def backend_order() -> List[str]:

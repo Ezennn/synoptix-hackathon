@@ -260,10 +260,15 @@ def _cost_efficiency(records, board, meta) -> None:
 
     pricing = (records[0] or {}).get("pricing") if records else None
     if pricing:
-        st.caption("Priced at ${:.2f} in / ${:.2f} out per million tokens — "
-                   "source: {} (as of {}).".format(
+        # Escape the dollars: a pair of them is LaTeX to Streamlit's markdown,
+        # which silently renders "$4.00 in / $20.00 out" as an equation.
+        st.caption("Priced at \\${:.2f} in / \\${:.2f} out per million tokens — "
+                   "source: {} (as of {}).{}".format(
                        pricing.get("input_per_m"), pricing.get("output_per_m"),
-                       pricing.get("source"), pricing.get("as_of")))
+                       pricing.get("source"), pricing.get("as_of"),
+                       " Applied when this log was read — the run predates the"
+                       " rate landing in config/pricing.yaml."
+                       if pricing.get("priced_at_read") else ""))
     else:
         st.warning("No confirmed token rate for **{}**, so every dollar figure "
                    "reads unknown rather than zero. Add it to `config/pricing.yaml`, "

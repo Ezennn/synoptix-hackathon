@@ -22,9 +22,13 @@ data/cache/
 results/*
 # Frozen evidence: the two A/B arms the deck quotes and scripts/analyse_ab.py
 # reads. Everything else under results/ is a working file.
+# Opus A/B: run_log.opus.jsonl is the hint-ON arm, .recency-off.jsonl the B arm.
 !results/run_log.opus.jsonl
+!results/run_log.opus.recency-off.jsonl
+# The earlier Haiku pair, kept for the smaller-model comparison in the README.
 !results/run_log.recency-on.jsonl
 !results/run_log.recency-off.jsonl
+!results/run_log.haiku-current.jsonl
 
 # OS / editor
 .DS_Store

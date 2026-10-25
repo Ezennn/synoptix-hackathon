@@ -2,9 +2,10 @@
 
     python scripts/analyse_ab.py
 
-Reads results/run_log.recency-on.jsonl and results/run_log.recency-off.jsonl —
-same 100 probes, same 3 backends, same model, identical prompts apart from one
-sentence: "If facts conflict, prefer the most recent."
+Reads the two committed Opus arms — results/run_log.opus.jsonl (hint ON) and
+results/run_log.opus.recency-off.jsonl (hint OFF) — same 100 probes, same 3
+backends, same model, identical prompts apart from one sentence: "If facts
+conflict, prefer the most recent." Pass --haiku for the earlier Haiku pair.
 
 Three readings, weakest to strongest:
 
@@ -26,10 +27,23 @@ sys.path.insert(0, str(ROOT))
 
 from ui.replay import has_stale, load_log, scoreboard  # noqa: E402
 
-ARMS = {
-    "hint ON": ROOT / "results" / "run_log.recency-on.jsonl",
-    "hint OFF": ROOT / "results" / "run_log.recency-off.jsonl",
-}
+def _arms(argv):
+    """Opus is the committed pair; --haiku reads the earlier smaller-model run."""
+    results = ROOT / "results"
+    if "--haiku" in argv:
+        return {
+            "hint ON": results / "run_log.recency-on.jsonl",
+            "hint OFF": results / "run_log.recency-off.jsonl",
+        }
+    # The ON arm is the deck's headline run, so it keeps its own name rather
+    # than being duplicated under a .recency-on alias.
+    return {
+        "hint ON": results / "run_log.opus.jsonl",
+        "hint OFF": results / "run_log.opus.recency-off.jsonl",
+    }
+
+
+ARMS = _arms(sys.argv)
 BACKENDS = ["sanity", "langgraph_state", "litellm_trim"]
 
 

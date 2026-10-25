@@ -28,8 +28,20 @@ def board(*rows):
 # --- pricing ---------------------------------------------------------------
 
 def test_unpriced_model_is_unknown_not_zero():
-    assert price_for("anthropic/claude-opus-5-5") is None
+    # Any model absent from config/pricing.yaml, not a specific one: the entry
+    # this test used to name (claude-opus-5-5) later got a confirmed rate, and
+    # the invariant being guarded is "no entry means unknown", not which models
+    # happen to be missing today.
+    assert price_for("anthropic/claude-nonexistent-9-9") is None
     assert price_for(None) is None
+
+
+def test_benchmark_model_is_priced_with_a_source():
+    # The committed runs are on Opus; an unpriced benchmark model makes every
+    # dollar figure on the dashboard read unknown.
+    rate = price_for("anthropic/claude-opus-5-5")
+    assert (rate["input_per_m"], rate["output_per_m"]) == (4.00, 20.00)
+    assert rate["source"] and rate["as_of"]
 
 
 def test_priced_model_carries_its_source():
