@@ -527,8 +527,71 @@ def _evaluation(records, board) -> None:
         text="backend:N")
     st.altair_chart((points + names).properties(height=320), use_container_width=True)
 
+    _judge_metrics(board)
+
     with st.expander("Full scoreboard"):
         _scoreboard_table(board)
+
+
+def _judge_metrics(board) -> None:
+    """Axes 2 & 3 — DeepEval Contextual Relevancy + Recall, per backend.
+
+    These are LLM-judged and scored OFFLINE by evaluator.score_offline(). Until
+    `deepeval` is installed and that pass has run, every value is None — so this
+    section says so plainly instead of rendering empty bars that look like zero.
+    """
+    st.subheader("Judge metrics — retrieval quality (axes 2 & 3)")
+    st.caption("Scored by DeepEval over each backend's retrieval_context: "
+               "**Contextual Recall** = did the facts needed for the answer "
+               "survive in the injected context; **Contextual Relevancy** = what "
+               "fraction of the injected context was actually relevant (order-"
+               "free, so it fits backends that don't rank). Faithfulness is "
+               "excluded from the headline — it scores the answer model, which "
+               "is identical across all backends.")
+
+    scored = [r for r in board if r["answered"]]
+    any_judge = any((r.get("judge_scored") or 0) > 0 for r in scored)
+    if not any_judge:
+        st.info("**Not scored in this run.** The judge metrics need `deepeval` "
+                "installed and a live run — `deepeval` requires Python 3.11+ "
+                "(this host is on 3.9) and a judge API key, and a stub run has no "
+                "real answers to judge. The columns, DB fields and this panel are "
+                "wired and will populate once `evaluator.score_offline()` runs "
+                "against a live log. Run: `python scripts/run_benchmark.py "
+                "--mode live` then the offline scorer.")
+        # Still show the table so the five/four backends are visibly listed as
+        # awaiting a score, rather than the section looking broken.
+        st.dataframe([{
+            "backend": r["backend"],
+            "contextual recall": "unscored",
+            "contextual relevancy": "unscored",
+            "turns judged": "{}/{}".format(r.get("judge_scored") or 0, r["answered"]),
+        } for r in scored], width="stretch", hide_index=True)
+        return
+
+    frame = pd.DataFrame([
+        {"backend": r["backend"], "metric": label, "value": (val or 0) * 100}
+        for r in scored
+        for label, val in (("Contextual recall", r.get("contextual_recall")),
+                           ("Contextual relevancy", r.get("contextual_relevancy")))
+        if val is not None
+    ])
+    if not frame.empty:
+        chart = alt.Chart(frame).mark_bar().encode(
+            x=alt.X("value:Q", title="score (%)", scale=alt.Scale(domain=[0, 100])),
+            y=alt.Y("backend:N", title=None),
+            color=alt.Color("metric:N", title=None),
+            yOffset="metric:N",
+            tooltip=["backend", "metric", alt.Tooltip("value:Q", format=".0f")],
+        ).properties(height=60 * len(scored))
+        st.altair_chart(chart, use_container_width=True)
+    st.dataframe([{
+        "backend": r["backend"],
+        "contextual recall": _pct(r.get("contextual_recall")),
+        "contextual relevancy": _pct(r.get("contextual_relevancy")),
+        "faithfulness": _pct(r.get("faithfulness")),
+        "turns judged": "{}/{}".format(r.get("judge_scored") or 0, r["answered"]),
+    } for r in scored], width="stretch", hide_index=True)
 
 
 def _cost_efficiency(records, board, meta) -> None:
@@ -621,6 +684,8 @@ def _scoreboard_table(board) -> None:
             "answered": "{}/{}".format(row["answered"], row["probes"]),
             "correct": "{}".format(row["correct"]),
             "consistency": _pct(row["consistency_rate"]),
+            "ctx recall": _pct(row.get("contextual_recall")),
+            "ctx relevancy": _pct(row.get("contextual_relevancy")),
             "stale context": _pct(row["stale_context_rate"]),
             "tokens in": _num(row["avg_tokens_in"]),
             "tokens out": _num(row["avg_tokens_out"]),

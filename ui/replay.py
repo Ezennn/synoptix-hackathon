@@ -137,6 +137,18 @@ def scoreboard(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         totals_tokens = [(s.get("tokens_in") or 0) + (s.get("tokens_out") or 0)
                          for s in scored]
 
+        # Judge metrics (axes 2 & 3), scored offline by DeepEval. These are None
+        # on every row until `deepeval` is installed and `evaluator.score_offline`
+        # has run — so the means are None, not zero, and the UI says "unscored"
+        # rather than implying a real zero.  context_precision holds Contextual
+        # RELEVANCY (set-based, order-free); the column name is legacy.
+        relevancy = _mean([s.get("context_precision") for s in scored])
+        recall = _mean([s.get("contextual_recall") for s in scored])
+        faithfulness = _mean([s.get("faithfulness") for s in scored])
+        judge_scored = sum(1 for s in scored
+                           if s.get("contextual_recall") is not None
+                           or s.get("context_precision") is not None)
+
         rows.append({
             "backend": name,
             "probes": len(recs),
@@ -145,6 +157,11 @@ def scoreboard(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "stale_context_rate": (sum(known) / len(known)) if known else None,
             "consistency_rate": (sum(consistencies) / len(consistencies))
                                 if consistencies else None,
+            # Judge metrics (axes 2 & 3). None until DeepEval has scored offline.
+            "contextual_relevancy": relevancy,   # axis 2 (set-based, order-free)
+            "contextual_recall": recall,         # axis 3
+            "faithfulness": faithfulness,        # answer-side; same model so not featured
+            "judge_scored": judge_scored,        # how many turns actually have a judge score
             "avg_tokens_in": _mean([s["tokens_in"] for s in scored]),
             "avg_tokens_out": _mean([s["tokens_out"] for s in scored]),
             "avg_total_tokens": _mean(totals_tokens),
