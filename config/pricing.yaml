@@ -30,6 +30,16 @@ models:
       Secondary sources agree on this rate; confirm on the official page before
       publishing a cost figure.
 
+  - match: claude-3-5-haiku
+    input_per_m: 0.80
+    output_per_m: 4.00
+    source: https://platform.claude.com/docs/en/about-claude/pricing
+    as_of: 2026-10-25
+    note: >
+      Rates carried over from main, where they were the blanket default for
+      every model. Scoped to the model they actually describe: applying one
+      model's rate to another reports a cost that was never measured.
+
 # Deliberately absent: claude-haiku-5-5 and claude-opus-5-5. We have not
 # confirmed their published rates, so runs on those models report cost as
 # unknown rather than guessing. Add an entry here, with its source, once the

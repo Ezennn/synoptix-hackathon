@@ -215,6 +215,27 @@ def score_probe(probe: Dict, answer: str) -> DagScore:
     return DagScore(1.0, True, "asserts current %r, no stale value" % expected, pid)
 
 
+def score(answer: str, probe: Dict) -> Tuple[float, str]:
+    """Compatibility entry point for B's evaluator (sync point 2).
+
+    B's ``src/evaluator.py`` calls ``score(answer=..., probe=...)`` and expects
+    ``(value, reason)``. B's Probe dataclass uses singular field names
+    (``fact_id``, ``superseded_answer``) while A's generate.py emits plural
+    (``fact_ids``, ``superseded_values``). This wrapper accepts EITHER shape so
+    neither side has to rewrite: it maps B's singular fields onto the plural
+    ones ``score_probe`` reads, then delegates.
+    """
+    p = dict(probe)
+    # reconcile field names B <-> A
+    if "superseded_values" not in p:
+        sv = p.get("superseded_answer")
+        p["superseded_values"] = [sv] if sv else []
+    if "fact_ids" not in p and p.get("fact_id"):
+        p["fact_ids"] = [p["fact_id"]]
+    res = score_probe(p, answer)
+    return res.score, res.reason
+
+
 def consistency_rate(cases: Sequence[Tuple[Dict, str]]) -> Dict:
     """Aggregate Consistency Rate over (probe, answer) pairs.
 

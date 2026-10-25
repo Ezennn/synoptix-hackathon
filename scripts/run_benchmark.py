@@ -30,24 +30,6 @@ DEFAULT_BACKENDS = ["sanity", "litellm_trim", "langgraph_state"]
 SESSION = "acme"
 
 
-def _load_dotenv(path: Path) -> None:
-    """Read KEY=VALUE lines from .env without printing anything.
-
-    Existing environment variables win, so an explicit export always beats the
-    file.
-    """
-    if not path.exists():
-        return
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key, value = key.strip(), value.strip()
-        if key and value and key not in os.environ:
-            os.environ[key] = value
-
-
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--backends", nargs="+", default=DEFAULT_BACKENDS,
@@ -74,7 +56,11 @@ def main(argv=None) -> int:
     args = parse_args(argv)
 
     # --- environment first, before any src import -------------------------
-    _load_dotenv(ROOT / ".env")
+    # One loader for the whole project: src/config.load_env is what the gateway
+    # calls too, and values already in the environment win over the file.
+    sys.path.insert(0, str(ROOT))
+    from src.config import load_env  # noqa: E402
+    load_env()
     os.environ["REGWATCH_LLM_MODE"] = args.mode
     if args.model:
         os.environ["REGWATCH_MODEL"] = args.model
@@ -87,7 +73,7 @@ def main(argv=None) -> int:
         RUN_LOG, Probe, check_log_mode, log_turn, provenance, score_live,
     )
     from src.llm import get_gateway  # noqa: E402
-    from src.registry import get_spec  # noqa: E402
+    from src.registry import get_spec, status  # noqa: E402
 
     probes = json.loads((ROOT / "data" / "probes.json").read_text())["probes"]
     sessions = [
@@ -139,7 +125,15 @@ def main(argv=None) -> int:
       for name in args.backends:
         spec = get_spec(name)
         if not spec.available():
-            print("  {:16} SKIPPED — not available".format(name))
+            # One 'unavailable' row per probe, so the column renders as degraded
+            # in the dashboard rather than vanishing from it. Carried over from
+            # scripts/run_phases.py, which had this and this runner did not.
+            reason = next((s["reason"] for s in status() if s["name"] == name), "")
+            for record in probes:
+                log_turn(SESSION, name, Probe.from_record(record), None, None,
+                         "unavailable", reason)
+            print("  {:16} unavailable — {} rows logged ({})".format(
+                name, len(probes), reason))
             continue
         backend = spec.get()
         backend.reset(SESSION)
