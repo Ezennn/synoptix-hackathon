@@ -1,7 +1,7 @@
 # TraceWise AI — pitch script
 
-Extracted from the speaker notes in `TraceWise_AI_Broader_Pitch.pptx`, so this file
-and presenter view are the same words. Edit the deck, not this file.
+Generated from the speaker notes in `TraceWise_AI_Broader_Pitch.pptx`, so this
+file and presenter view are the same words. Edit the deck, not this file.
 
 **Timing:** ~6:40 spoken plus a 90-second demo. Lines starting in CAPS are stage
 directions, not words to say.
@@ -104,17 +104,27 @@ STAGE: For a non-technical room the four verbs are enough. The stack line is for
 
 Nobody typed anything wrong. The January note was true in January."
 
-(Show: old fact, the correction, the probe.)
+(RECOMMENDATION TAB. Lead with this - it is the whole product in one screen.)
 
-"Same question, three memory layers, side by side. Here's what each one actually answered. Here's what the dated answer key says was true in April."
+"This is every fact that moved in this client's file, and whether the assistant kept up.
 
-(Open one real failure.)
+Top of the list: risk appetite, aggressive to conservative, changed in March. Ten answers still came back aggressive. Two of the three memory layers are still quoting the old value."
 
-"And this is the part that matters for governance - not just that it's wrong, but the exact context the memory layer handed the model. That's the evidence an assurance team needs to act."
+(POINT AT THE INFERRED CARD - crypto exposure.)
+
+"And this one was never stated anywhere. The client divested the subsidiary that held the crypto, so the exposure went to no by inference. No keyword search finds that. The answer key knows it, so we can test it."
+
+(SIDE-BY-SIDE. Now drill into one.)
+
+"Same question, three memory layers. Here is what each one actually answered, against what was true in April."
+
+(OPEN ONE REAL FAILURE.)
+
+"And this is what matters for governance - not just that it is wrong, but the exact context the memory layer handed the model. That is the evidence an assurance team needs to act."
 
 IF THE DEMO MISBEHAVES: "the committed run is in the repo and the dashboard opens on it" - then go to slide 7. Do not debug on stage.
 
-BEFORE YOU START: have the dashboard already open on the Opus run in a second tab.
+BEFORE YOU START: dashboard open on the Opus run, Recommendation tab already selected.
 
 ---
 
