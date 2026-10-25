@@ -57,6 +57,8 @@ SPECS: List[BackendSpec] = [
                 note="hard token-budget trimming"),
     BackendSpec("langgraph_state", "src.adapters.langgraph_state", "build", owner="A",
                 note="checkpointer + summarising reducer"),
+    BackendSpec("langgraph_tuned", "src.adapters.langgraph_tuned", "build", owner="A",
+                note="TUNED (Rung-1): reducer + generic held_via dependency-propagation inference"),
     # B's hosted integrations. Gated on the hour-0 spikes.
     BackendSpec("zep_graph", "src.adapters.zep_graph", "build",
                 requires=("zep_cloud",),
